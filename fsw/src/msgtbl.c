@@ -26,6 +26,7 @@
 */
 
 #include <string.h>
+#include "cfe_endian.h"
 #include "msgtbl.h"
 
 /***********************/
@@ -66,7 +67,7 @@ typedef struct
 /************************************/
 
 static void ConstructJsonMessage(JsonMessage_t* JsonMessage, uint16 MsgArrayIdx);
-static boolean LoadJsonData(size_t JsonFileLen);
+static bool LoadJsonData(size_t JsonFileLen);
 static char *SplitStr(char *Str, const char *Delim);
 
 /**********************/
@@ -118,16 +119,16 @@ void MSGTBL_ResetStatus(void)
 **  2. Can assume valid table file name because this is a callback from 
 **     the app framework table manager that has verified the file.
 */
-boolean MSGTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename)
+bool MSGTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename)
 {
 
-   boolean  RetStatus = FALSE;
+   bool  RetStatus = false;
 
    if (CJSON_ProcessFile(Filename, MsgTbl->JsonBuf, MSGTBL_JSON_FILE_MAX_CHAR, LoadJsonData))
    {
-      MsgTbl->Loaded = TRUE;
+      MsgTbl->Loaded = true;
       MsgTbl->LastLoadStatus = TBLMGR_STATUS_VALID;
-      RetStatus = TRUE;
+      RetStatus = true;
    }
    else
    {
@@ -151,18 +152,23 @@ boolean MSGTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename)
 **  4. DumpType is unused.
 */
 
-boolean MSGTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename)
+bool MSGTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename)
 {
 
-   boolean  RetStatus = FALSE;
-   int32    FileHandle, i, d;
-   char     DumpRecord[256];
-   char     SysTimeStr[256];
-   uint16   DataWords;
+   bool        RetStatus = false;
+   int32       OsStatus;
+   osal_id_t   FileHandle;
+   int32       i, d;
+   char        DumpRecord[256];
+   char        SysTimeStr[64];
+   uint16      DataWords;
+   os_err_name_t      OsErrStr;
+   CFE_MSG_Size_t     MsgBytes;
+   const MSGTBL_Tbl_t *MsgTblPtr;
    
-   FileHandle = OS_creat(Filename, OS_WRITE_ONLY);
+   OsStatus = OS_OpenCreate(&FileHandle, Filename, OS_FILE_FLAG_CREATE | OS_FILE_FLAG_TRUNCATE, OS_READ_WRITE);
 
-   if (FileHandle >= OS_FS_SUCCESS)
+   if (OsStatus == OS_SUCCESS)
    {
 
       sprintf(DumpRecord,"{\n   \"app-name\": \"%s\",\n   \"tbl-name\": \"Message\",\n",MsgTbl->AppName);
@@ -205,9 +211,9 @@ boolean MSGTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename)
          
          sprintf(DumpRecord,"      \"id\": %d,\n      \"stream-id\": %d,\n      \"seq-seg\": %d,\n      \"length\": %d",
                  i,
-                 CFE_MAKE_BIG16(MsgTbl->Data.Entry[i].Buffer[0]),
-                 CFE_MAKE_BIG16(MsgTbl->Data.Entry[i].Buffer[1]),
-                 CFE_MAKE_BIG16(MsgTbl->Data.Entry[i].Buffer[2]));
+                 CFE_MAKE_BIG16(MsgTblPtr->Entry[i].Buffer[0]),
+                 CFE_MAKE_BIG16(MsgTblPtr->Entry[i].Buffer[1]),
+                 CFE_MAKE_BIG16(MsgTblPtr->Entry[i].Buffer[2]));
          OS_write(FileHandle,DumpRecord,strlen(DumpRecord));
          
          /*
@@ -215,12 +221,16 @@ boolean MSGTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename)
          ** the secondary header and don't distinguish between cmd or tlm
          ** packets. 
          */
-         DataWords = (CFE_SB_GetTotalMsgLength((const CFE_SB_Msg_t *)MsgTbl->Data.Entry[i].Buffer) - PKTUTIL_PRI_HDR_BYTES)/2;
+         
+         // TODO - cFE7.0 Rethink table itself. Either only allow commands or use message type to get header length and data words will truly just be payload
+         
+         CFE_MSG_GetSize((const CFE_MSG_Message_t *)MsgTblPtr->Entry[i].Buffer, &MsgBytes);
 
+         DataWords = (MsgBytes-PKTUTIL_PRI_HDR_BYTES)/2;
          if (DataWords > (uint8)(MSGTBL_MAX_MSG_WORDS))
          {
             
-            CFE_EVS_SendEvent(MSGTBL_DUMP_ERR_EID, CFE_EVS_ERROR,
+            CFE_EVS_SendEvent(MSGTBL_DUMP_ERR_EID, CFE_EVS_EventType_ERROR,
                               "Error creating dump file message entry %d. Message word length %d is greater than max data buffer %ld",
                               i, DataWords, PKTUTIL_PRI_HDR_WORDS);         
          }
@@ -266,19 +276,20 @@ boolean MSGTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename)
       sprintf(DumpRecord,"\n]}\n");
       OS_write(FileHandle,DumpRecord,strlen(DumpRecord));
 
-      RetStatus = TRUE;
+      RetStatus = true;
 
       OS_close(FileHandle);
 
-      CFE_EVS_SendEvent(MSGTBL_DUMP_EID, CFE_EVS_INFORMATION,
+      CFE_EVS_SendEvent(MSGTBL_DUMP_EID, CFE_EVS_EventType_INFORMATION,
                         "Successfully dumped message table to %s", Filename);
 
    } /* End if file create */
    else
    {
-   
-      CFE_EVS_SendEvent(MSGTBL_DUMP_ERR_EID, CFE_EVS_ERROR,
-                        "Error creating dump file '%s', Status=0x%08X", Filename, FileHandle);
+      OS_GetErrorName(OsStatus,&OsErrStr);
+      CFE_EVS_SendEvent(MSGTBL_DUMP_ERR_EID, CFE_EVS_EventType_ERROR,
+                        "Error creating dump file '%s', status=%s",
+                        Filename, OsErrStr);
    
    } /* End if file create error */
 
@@ -339,12 +350,12 @@ static void ConstructJsonMessage(JsonMessage_t* JsonMessage, uint16 MsgArrayIdx)
 static boolean LoadJsonData(size_t JsonFileLen)
 {
 
-   boolean  RetStatus = TRUE;
-   boolean  ReadMsg = TRUE;
-   uint16   i;
-   uint16   AttributeCnt;
-   uint16   MsgArrayIdx;
-   char*    DataStrPtr;
+   bool    RetStatus = true;
+   bool    ReadMsg = true;
+   uint16  i;
+   uint16  AttributeCnt;
+   uint16  MsgArrayIdx;
+   char*   DataStrPtr;
 
    JsonMessage_t  JsonMessage;
    MSGTBL_Entry_t MsgEntry;
@@ -423,8 +434,8 @@ static boolean LoadJsonData(size_t JsonFileLen)
                CFE_EVS_SendEvent(MSGTBL_LOAD_ERR_EID, CFE_EVS_ERROR,
                                  "Message[%d] only has %d attributes. stream-id, seq-seg, or length is missing",
                                  MsgArrayIdx, AttributeCnt);
-               ReadMsg = FALSE;
-               RetStatus = FALSE;
+               ReadMsg = false;
+               RetStatus = false;
             }
          } /* End if valid ID */
          else
@@ -439,7 +450,7 @@ static boolean LoadJsonData(size_t JsonFileLen)
       } /* End if 'id' */
       else
       {
-         ReadMsg = FALSE;
+         ReadMsg = false;
       }
       
    } /* End ReadMsg */
@@ -451,7 +462,7 @@ static boolean LoadJsonData(size_t JsonFileLen)
    }
    else
    {
-      if (RetStatus == TRUE)
+      if (RetStatus == true)
       {
          memcpy(&MsgTbl->Data,&TblData, sizeof(MSGTBL_Data_t));
          MsgTbl->LastLoadCnt = MsgArrayIdx;

@@ -70,10 +70,10 @@
 typedef struct
 {
 
-   boolean Enabled;
-   uint8   Period;
-   uint8   Offset;
-   uint8   MsgTblIndex;
+   bool   Enabled;
+   uint8  Period;
+   uint8  Offset;
+   uint8  MsgTblIndex;
 
 } SCHTBL_Entry_t;
 
@@ -104,7 +104,7 @@ typedef struct
    */
    
    const char*  AppName;
-   boolean      Loaded;   /* Has entire table been loaded? */
+   bool         Loaded;   /* Has entire table been loaded? */
    uint8        LastLoadStatus;
    uint16       LastLoadCnt;
    
@@ -157,7 +157,7 @@ void SCHTBL_ResetStatus(void);
 **   None
 **
 */
-boolean SCHTBL_ProcessTable(void);
+bool SCHTBL_ProcessTable(void);
 
 
 /******************************************************************************
@@ -181,7 +181,7 @@ int32 SCHTBL_StartTimers(void);
 **     the app framework table manager.
 **
 */
-boolean SCHTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename);
+bool SCHTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename);
 
 
 /******************************************************************************
@@ -195,7 +195,7 @@ boolean SCHTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename);
 **     the app framework table manager.
 **
 */
-boolean SCHTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename);
+bool SCHTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename);
 
 
 /******************************************************************************
@@ -204,7 +204,7 @@ boolean SCHTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename);
 ** Compute and load EntryIndex if the SlotIndex and ActivityIndex are valid.
 ** Event message text assumes commands are being validated 
 */
-boolean SCHTBL_GetEntryIndex(const char* EventStr, uint16 SlotIndex, 
+bool SCHTBL_GetEntryIndex(const char* EventStr, uint16 SlotIndex, 
                              uint16 ActivityIndex, uint16* EntryIndex);
 
 
@@ -218,7 +218,7 @@ boolean SCHTBL_GetEntryIndex(const char* EventStr, uint16 SlotIndex,
 ** The event string should identify the calling context such as whcih ground
 ** command.
 */
-boolean SCHTBL_ValidEntry(const char* EventStr, uint16 Enabled, uint16 Period, 
-                          uint16 Offset, uint16 MsgTblIndex);
+bool SCHTBL_ValidEntry(const char* EventStr, uint16 Enabled, uint16 Period, 
+                       uint16 Offset, uint16 MsgTblIndex);
                           
 #endif /* _schtbl_ */

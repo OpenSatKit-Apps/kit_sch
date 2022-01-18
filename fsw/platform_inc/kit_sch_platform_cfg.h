@@ -78,7 +78,7 @@
 
 #define MSGTBL_MAX_ENTRIES           200
 #define MSGTBL_JSON_FILE_MAX_CHAR  16384
-#define MSGTBL_UNUSED_MSG_ID       (CFE_SB_HIGHEST_VALID_MSGID+1)
+#define MSGTBL_UNUSED_MSG_ID       (CFE_SB_INVALID_MSG_ID)
 
 /*
 ** Max message length in words.  Must be at least large enough to hold the

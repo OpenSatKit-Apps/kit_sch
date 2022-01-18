@@ -71,7 +71,7 @@ typedef struct
 
 static void ConstructJsonActivity(JsonActivity_t* JsonActivity, uint16 ActivityArrayIdx, uint16 SlotArrayIdx);
 static void ConstructJsonSlot(JsonSlot_t* JsonSlot, uint16 SlotArrayIdx);
-static boolean LoadJsonData(size_t JsonFileLen);
+static bool LoadJsonData(size_t JsonFileLen);
 
 
 /**********************/
@@ -123,16 +123,16 @@ void SCHTBL_ResetStatus(void)
 **  2. Can assume valid table file name because this is a callback from 
 **     the app framework table manager that has verified the file.
 */
-boolean SCHTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename)
+bool SCHTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename)
 {
 
-   boolean  RetStatus = FALSE;
+   bool  RetStatus = false;
 
    if (CJSON_ProcessFile(Filename, SchTbl->JsonBuf, SCHTBL_JSON_FILE_MAX_CHAR, LoadJsonData))
    {
-      SchTbl->Loaded = TRUE;
+      SchTbl->Loaded = true;
       SchTbl->LastLoadStatus = TBLMGR_STATUS_VALID;
-      RetStatus = TRUE;
+      RetStatus = true;
    }
    else
    {
@@ -158,18 +158,21 @@ boolean SCHTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename)
 **  4. DumpType is unused.
 */
 
-boolean SCHTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename)
+bool SCHTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename)
 {
 
-   boolean  RetStatus = FALSE;
-   int32    FileHandle;
-   uint16   EntryIdx, Slot, Activity;
-   char     DumpRecord[256];
-   char     SysTimeStr[256];
+   bool      RetStatus = false;
+   osal_id_t FileHandle;
+   int32     OsStatus;
+   uint16    EntryIdx, Slot, Activity;
+   char      DumpRecord[256];
+   const     SCHTBL_Tbl *SchTblPtr;
+   char      SysTimeStr[64];
+   os_err_name_t OsErrStr;
    
-   FileHandle = OS_creat(Filename, OS_WRITE_ONLY);
-
-   if (FileHandle >= OS_FS_SUCCESS)
+   OsStatus = OS_OpenCreate(&FileHandle, Filename, OS_FILE_FLAG_CREATE | OS_FILE_FLAG_TRUNCATE, OS_READ_WRITE);
+   
+   if (OsStatus == OS_SUCCESS)
    {
 
       sprintf(DumpRecord,"\n{\n\"name\": \"Kit Scheduler (KIT_SCH) Scheduler Activity Table\",\n");
@@ -185,7 +188,7 @@ boolean SCHTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename)
       ** - Not all fields in ground table are saved in FSW so they are not
       **   populated in the dump file. However, the dump file can still
       **   be loaded.
-      ** - The slot avd activity 'index' field is used to indicate whether
+      ** - The slot and activity 'index' field is used to indicate whether
       **   an activity has been loaded.      
       ** 
       **   "slot-array": [
@@ -255,23 +258,24 @@ boolean SCHTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename)
       sprintf(DumpRecord,"\n   ]\n}\n");
       OS_write(FileHandle,DumpRecord,strlen(DumpRecord));
 
-      RetStatus = TRUE;
+      RetStatus = true;
 
       OS_close(FileHandle);
 
    } /* End if file create */
    else
    {
-   
-      CFE_EVS_SendEvent(SCHTBL_DUMP_ERR_EID, CFE_EVS_ERROR,
-                        "Error creating dump file '%s', Status=0x%08X", Filename, FileHandle);
+      OS_GetErrorName(OsStatus,&OsErrStr);
+      CFE_EVS_SendEvent(SCHTBL_DUMP_ERR_EID, CFE_EVS_EventType_ERROR,
+                        "Error creating dump file '%s', status=%s",
+                        Filename, OsErrStr);
    
    } /* End if file create error */
 
    if (RetStatus)
    {
       
-      CFE_EVS_SendEvent(SCHTBL_DUMP_EID, CFE_EVS_INFORMATION,
+      CFE_EVS_SendEvent(SCHTBL_DUMP_EID, CFE_EVS_EventType_INFORMATION,
                         "Successfully dumped scheduler table to %s", Filename);
    }
    
@@ -284,16 +288,16 @@ boolean SCHTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename)
 ** Function: SCHTBL_GetEntryPtr
 **
 */
-boolean SCHTBL_GetEntryPtr(uint16  EntryId, SCHTBL_Entry_t **EntryPtr)
+bool SCHTBL_GetEntryPtr(uint16  EntryId, SCHTBL_Entry_t **EntryPtr)
 {
 
-   boolean RetStatus = FALSE;
+   bool RetStatus = false;
 
    if (EntryId < SCHTBL_MAX_ENTRIES)
    {
 
       *EntryPtr = &SchTbl->Data.Entry[EntryId];
-      RetStatus = TRUE;
+      RetStatus = true;
  
    } /* End if valid EntryId */
 
@@ -309,11 +313,11 @@ boolean SCHTBL_GetEntryPtr(uint16  EntryId, SCHTBL_Entry_t **EntryPtr)
 ** Compute and load EntryIndex if the SlotIndex and ActivityIndex are valid.
 ** Event message text assumes commands are being validated 
 */
-boolean SCHTBL_GetEntryIndex(const char* EventStr, uint16 SlotIndex, 
-                             uint16 ActivityIndex, uint16* EntryIndex)
+bool SCHTBL_GetEntryIndex(const char* EventStr, uint16 SlotIndex, 
+                          uint16 ActivityIndex, uint16* EntryIndex)
 {
    
-   boolean RetStatus = FALSE;
+   bool RetStatus = false;
    
    if (SlotIndex < SCHTBL_SLOTS)
    {
@@ -322,13 +326,13 @@ boolean SCHTBL_GetEntryIndex(const char* EventStr, uint16 SlotIndex,
       {
          
          *EntryIndex = SCHTBL_INDEX(SlotIndex, ActivityIndex);
-         RetStatus = TRUE;
+         RetStatus = true;
          
       }
       else
       {
          
-         CFE_EVS_SendEvent (SCHTBL_INDEX_ERR_EID, CFE_EVS_ERROR, 
+         CFE_EVS_SendEvent (SCHTBL_CMD_ACTIVITY_ERR_EID, CFE_EVS_EventType_ERROR, 
                             "%s. Invalid activity index %d greater than max %d",
                             EventStr, ActivityIndex, (SCHTBL_ACTIVITIES_PER_SLOT-1));
       }
@@ -337,7 +341,7 @@ boolean SCHTBL_GetEntryIndex(const char* EventStr, uint16 SlotIndex,
    else
    {
       
-      CFE_EVS_SendEvent (SCHTBL_INDEX_ERR_EID, CFE_EVS_ERROR, 
+      CFE_EVS_SendEvent (SCHTBL_CMD_SLOT_ERR_EID, CFE_EVS_EventType_ERROR, 
                          "%s. Invalid slot index %d greater than max %d",
                          EventStr, SlotIndex, (SCHTBL_SLOTS-1));
 
@@ -355,11 +359,11 @@ boolean SCHTBL_GetEntryIndex(const char* EventStr, uint16 SlotIndex,
 ** validate command and table parameters that may not be packed identically
 ** to the internal structure.
 */
-boolean SCHTBL_ValidEntry(const char* EventStr, uint16 Enabled, uint16 Period, 
-                          uint16 Offset, uint16 MsgTblIndex)
+bool SCHTBL_ValidEntry(const char* EventStr, uint16 Enabled, uint16 Period, 
+                       uint16 Offset, uint16 MsgTblIndex)
 {
 
-   boolean RetStatus = FALSE;
+   bool RetStatus = false;
 
    if (CMDMGR_ValidBoolArg(Enabled))
    {
@@ -376,13 +380,14 @@ boolean SCHTBL_ValidEntry(const char* EventStr, uint16 Enabled, uint16 Period,
          if ( MsgTblIndex >= 0 && MsgTblIndex < MSGTBL_MAX_ENTRIES)
          {
          
-           RetStatus = TRUE;
+           
+           RetStatus = true;
             
          }
          else
          {
          
-            CFE_EVS_SendEvent(SCHTBL_ENTRY_ERR_EID, CFE_EVS_ERROR, 
+            CFE_EVS_SendEvent(SCHTBL_MSG_TBL_INDEX_ERR_EID, CFE_EVS_EventType_ERROR, 
                               "%s. Invalid msg index %d. Valid index: 0 <= Index < %d.",
                               EventStr, MsgTblIndex, MSGTBL_MAX_ENTRIES);
       
@@ -391,7 +396,7 @@ boolean SCHTBL_ValidEntry(const char* EventStr, uint16 Enabled, uint16 Period,
       else
       {
          
-         CFE_EVS_SendEvent(SCHTBL_ENTRY_ERR_EID, CFE_EVS_ERROR,
+         CFE_EVS_SendEvent(SCHTBL_OFFSET_ERR_EID, CFE_EVS_EventType_ERROR,
                            "%s. Offset %d is greater than Period %d",
                            EventStr, Offset, Period);    
       
@@ -400,9 +405,9 @@ boolean SCHTBL_ValidEntry(const char* EventStr, uint16 Enabled, uint16 Period,
    else
    {
    
-      CFE_EVS_SendEvent(SCHTBL_ENTRY_ERR_EID, CFE_EVS_ERROR,
+      CFE_EVS_SendEvent(SCHTBL_ENTRY_ERR_EID, CFE_EVS_EventType_ERROR,
                         "%s. Invalid Enabled value %d. Must be True(%d) or False(%d)",
-                        EventStr, Enabled, TRUE, FALSE);    
+                        EventStr, Enabled, true, false);    
          
    } /* End if invalid boolean config */
 
@@ -470,19 +475,19 @@ static void ConstructJsonSlot(JsonSlot_t* JsonSlot, uint16 SlotArrayIdx)
 **        "msg-idx": 12
 **
 */
-static boolean LoadJsonData(size_t JsonFileLen)
+static bool LoadJsonData(size_t JsonFileLen)
 {
 
-   boolean  RetStatus = TRUE;
-   boolean  ReadSlot = TRUE;
-   boolean  ReadActivity = FALSE;
-   uint16   EntryUdateCnt = 0;
-   uint16   AttributeCnt;
-   uint16   SlotIdx;
-   uint16   SlotArrayIdx;
-   uint16   ActivityIdx;
-   uint16   ActivityArrayIdx;
-   uint16   EntryIdx;
+   bool    RetStatus = true;
+   bool    ReadSlot = true;
+   bool    ReadActivity = false;
+   uint16  EntryUdateCnt = 0;
+   uint16  AttributeCnt;
+   uint16  SlotIdx;
+   uint16  SlotArrayIdx;
+   uint16  ActivityIdx;
+   uint16  ActivityArrayIdx;
+   uint16  EntryIdx;
 
    JsonSlot_t      JsonSlot;
    JsonActivity_t  JsonActivity;
@@ -524,7 +529,7 @@ static boolean LoadJsonData(size_t JsonFileLen)
 
          SlotIdx = JsonSlot.Index.Value;
          
-         ReadActivity = TRUE;
+         ReadActivity = true;
          ActivityArrayIdx = 0;
             
          while (ReadActivity)
@@ -569,12 +574,12 @@ static boolean LoadJsonData(size_t JsonFileLen)
             } /* End if Activity found */
             else
             {
-               ReadActivity = FALSE;
+               ReadActivity = false;
             }
-            if (RetStatus == FALSE)
+            if (RetStatus == false)
             {
-               ReadSlot     = FALSE;
-               ReadActivity = FALSE;
+               ReadSlot     = false;
+               ReadActivity = false;
             }
             
          } /* End while read activity */
@@ -584,16 +589,16 @@ static boolean LoadJsonData(size_t JsonFileLen)
       } /* End if Slot found */
       else
       {
-         ReadSlot = FALSE;
+         ReadSlot = false;
       }         
       
    } /* End while read slot */
 
-   if (RetStatus == TRUE)
+   if (RetStatus == true)
    {
       memcpy(&SchTbl->Data,&TblData, sizeof(SCHTBL_Data_t));
       SchTbl->LastLoadCnt = EntryUdateCnt;
-      CFE_EVS_SendEvent(SCHTBL_LOAD_EID, CFE_EVS_INFORMATION,
+      CFE_EVS_SendEvent(SCHTBL_LOAD_EID, CFE_EVS_EventType_INFORMATION,
                         "Scheduler Table load updated %d entries", EntryUdateCnt);
    }
    

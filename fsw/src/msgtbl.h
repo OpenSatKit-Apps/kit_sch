@@ -88,7 +88,7 @@ typedef struct
    */
    
    const char*  AppName;
-   boolean      Loaded;   /* Has entire table been loaded? */
+   bool         Loaded;   /* Has entire table been loaded? */
    uint8        LastLoadStatus;
    uint16       LastLoadCnt;
    
@@ -141,7 +141,7 @@ void MSGTBL_ResetStatus(void);
 **     the app framework table manager.
 **
 */
-boolean MSGTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename);
+bool MSGTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename);
 
 
 /******************************************************************************
@@ -155,7 +155,7 @@ boolean MSGTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename);
 **     the app framework table manager.
 **
 */
-boolean MSGTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename);
+bool MSGTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename);
 
 
 /******************************************************************************
@@ -168,7 +168,7 @@ boolean MSGTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename);
 **     an invalid ID.
 **
 */
-boolean MSGTBL_SendMsg(uint16  EntryId);
+bool MSGTBL_SendMsg(uint16  EntryId);
 
 
 #endif /* _msgtbl_ */

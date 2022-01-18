@@ -44,6 +44,7 @@
 ** 1.1 - Refactored for OSK 2.2
 ** 2.0 - Added Sch & Msg table commands and diagnostics telemetry
 ** 3.0 - New baseline for separate OSK app repo compatible with cFE Bootes
+** 4.0 - New baseline for separate OSK app repo compatible with cFE Caelum
 */
 
 #define  KIT_SCH_MAJOR_VER      3
@@ -135,8 +136,8 @@ DECLARE_ENUM(Config,APP_CONFIG)
 */
 
 #define KIT_SCH_INIT_DEBUG_EID 999
-#define KIT_SCH_INIT_EVS_TYPE CFE_EVS_DEBUG
-//#define KIT_SCH_INIT_EVS_TYPE CFE_EVS_INFORMATION
+#define KIT_SCH_INIT_EVS_TYPE CFE_EVS_EventType_DEBUG
+//#define KIT_SCH_INIT_EVS_TYPE CFE_EVS_EventType_INFORMATION
 
 
 #endif /* _app_cfg_ */

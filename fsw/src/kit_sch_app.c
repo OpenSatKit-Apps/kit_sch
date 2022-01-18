@@ -57,8 +57,8 @@
 /*******************************/
 
 static int32 InitApp(void);
-static void ProcessCommands(void);
-static void SendHousekeepingPkt(KIT_SCH_HkPkt_t* HkPkt);
+static int32 ProcessCommands(void);
+static void  SendHousekeepingPkt(void);
 
 
 /**********************/
@@ -86,56 +86,23 @@ KIT_SCH_Class   KitSch;
 void KIT_SCH_AppMain(void)
 {
 	
-   int32  Status    = CFE_SEVERITY_ERROR;
-   uint32 RunStatus = CFE_ES_APP_ERROR;
+   uint32 RunStatus = CFE_ES_RunStatus_APP_ERROR;
    
-
-   /*
-   ** Register application
-   */
-    
-   Status = CFE_ES_RegisterApp();
-
-   CFE_EVS_Register(NULL, 0, 0);
-
-   /*
-   ** Perform application specific initialization
-   */
-   if (Status == CFE_SUCCESS)
-   {
-      
-      Status = InitApp();
-   }
+   CFE_EVS_Register(NULL, 0, CFE_EVS_NO_FILTER);
 
    /* 
    ** Load KIT_SCH towards the end in cfe_es_startup.scr (see file comments) to
    ** avoid startup pipe overflows. The local event log can be used to analyze
    ** the events during startup.   
    */
-   if (Status == CFE_SUCCESS)
+   if (InitApp() == CFE_SUCCESS)      /* Performs initial CFE_ES_PerfLogEntry() call */
    {
-      
       CFE_ES_WaitForStartupSync(KitSch.StartupSyncTimeout);   
-      RunStatus = CFE_ES_APP_RUN;
-   
-   }
-   
-   if (Status == CFE_SUCCESS)
-   {
-
-      /*
-      ** Flight version includes a call to CFE_ES_WaitForStartupSync(). Since
-      ** this will be used in a dynamic test environment the idea is let the
-      ** default scheduler start and add applications as needed from the user
-      ** console as opposed to trying to synchronize everything in the embedded
-      ** system.
-      */
-
-      Status = SCHEDULER_StartTimers();
-
+      if (SCHEDULER_StartTimers() == CFE_SUCCESS)
+      {
+         RunStatus = CFE_ES_RunStatus_APP_RUN;
+      }
    } /* End if App initialized successfully */
-
-   if (Status == CFE_SUCCESS) RunStatus = CFE_ES_APP_RUN;
 
    /*
    ** Main process loop
@@ -146,14 +113,12 @@ void KIT_SCH_AppMain(void)
 
       if (!SCHEDULER_Execute())
       {
-          
-         RunStatus = CFE_ES_APP_ERROR;
+         RunStatus = CFE_ES_RunStatus_APP_ERROR;
       }
 
-      ProcessCommands();
+      RunStatus = ProcessCommands();
       
    } /* End CFE_ES_RunLoop */
-
 
    /* Write to system log in case events not working */
 
@@ -170,14 +135,14 @@ void KIT_SCH_AppMain(void)
 ** Function: KIT_SCH_NoOpCmd
 **
 */
-boolean KIT_SCH_NoOpCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr)
+bool KIT_SCH_NoOpCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr)
 {
 
-   CFE_EVS_SendEvent (KIT_SCH_APP_NOOP_EID, CFE_EVS_INFORMATION,
+   CFE_EVS_SendEvent (KIT_SCH_APP_NOOP_EID, CFE_EVS_EventType_INFORMATION,
                       "Kit Scheduler (KIT_SCH) version %d.%d.%d received a no operation command",
                       KIT_SCH_MAJOR_VER, KIT_SCH_MINOR_VER, KIT_SCH_PLATFORM_REV);
 
-   return TRUE;
+   return true;
 
 } /* End KIT_SCH_NoOpCmd() */
 
@@ -186,7 +151,7 @@ boolean KIT_SCH_NoOpCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr)
 ** Function: KIT_SCH_ResetAppCmd
 **
 */
-boolean KIT_SCH_ResetAppCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr)
+bool KIT_SCH_ResetAppCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr)
 {
 
    CMDMGR_ResetStatus(CMDMGR_OBJ);
@@ -194,7 +159,7 @@ boolean KIT_SCH_ResetAppCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr)
 
    SCHEDULER_ResetStatus();
 
-   return TRUE;
+   return true;
 
 } /* End KIT_SCH_ResetAppCmd() */
 
@@ -203,25 +168,25 @@ boolean KIT_SCH_ResetAppCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr)
 ** Function: SendHousekeepingPkt
 **
 */
-static void SendHousekeepingPkt(KIT_SCH_HkPkt_t* HkPkt)
+static void SendHousekeepingPkt(void)
 {
 
    /*
    ** KIT_SCH Data
    */
 
-   HkPkt->ValidCmdCnt   = KitSch.CmdMgr.ValidCmdCnt;
-   HkPkt->InvalidCmdCnt = KitSch.CmdMgr.InvalidCmdCnt;
+   KitSch.HkPkt.ValidCmdCnt   = KitSch.CmdMgr.ValidCmdCnt;
+   KitSch.HkPkt.InvalidCmdCnt = KitSch.CmdMgr.InvalidCmdCnt;
 
    /*
    ** TBLMGR Data
    */
 
-   HkPkt->MsgTblLastLoadStatus = KitSch.Scheduler.MsgTbl.LastLoadStatus;
-   HkPkt->MsgTblAttrErrCnt     = KitSch.Scheduler.MsgTbl.LastLoadCnt;
+   KitSch.HkPkt.MsgTblLastLoadStatus = KitSch.Scheduler.MsgTbl.LastLoadStatus;
+   KitSch.HkPkt.MsgTblAttrErrCnt     = KitSch.Scheduler.MsgTbl.LastLoadCnt;
    
-   HkPkt->SchTblLastLoadStatus = KitSch.Scheduler.SchTbl.LastLoadStatus;
-   HkPkt->SchTblAttrErrCnt     = KitSch.Scheduler.SchTbl.LastLoadCnt;
+   KitSch.HkPkt.SchTblLastLoadStatus = KitSch.Scheduler.SchTbl.LastLoadStatus;
+   KitSch.HkPkt.SchTblAttrErrCnt     = KitSch.Scheduler.SchTbl.LastLoadCnt;
 
    /*
    ** Scheduler Data
@@ -229,24 +194,24 @@ static void SendHousekeepingPkt(KIT_SCH_HkPkt_t* HkPkt)
    ** - These have been rearranged to align data words
    */
 
-   HkPkt->SlotsProcessedCount          = KitSch.Scheduler.SlotsProcessedCount;
-   HkPkt->ScheduleActivitySuccessCount = KitSch.Scheduler.ScheduleActivitySuccessCount;
-   HkPkt->ScheduleActivityFailureCount = KitSch.Scheduler.ScheduleActivityFailureCount;
-   HkPkt->ValidMajorFrameCount         = KitSch.Scheduler.ValidMajorFrameCount;
-   HkPkt->MissedMajorFrameCount        = KitSch.Scheduler.MissedMajorFrameCount;
-   HkPkt->UnexpectedMajorFrameCount    = KitSch.Scheduler.UnexpectedMajorFrameCount;
-   HkPkt->TablePassCount               = KitSch.Scheduler.TablePassCount;
-   HkPkt->ConsecutiveNoisyFrameCounter = KitSch.Scheduler.ConsecutiveNoisyFrameCounter;
-   HkPkt->SkippedSlotsCount            = KitSch.Scheduler.SkippedSlotsCount;
-   HkPkt->MultipleSlotsCount           = KitSch.Scheduler.MultipleSlotsCount;
-   HkPkt->SameSlotCount                = KitSch.Scheduler.SameSlotCount;
-   HkPkt->SyncAttemptsLeft             = KitSch.Scheduler.SyncAttemptsLeft;
-   HkPkt->LastSyncMETSlot              = KitSch.Scheduler.LastSyncMETSlot;
-   HkPkt->IgnoreMajorFrame             = KitSch.Scheduler.IgnoreMajorFrame;
-   HkPkt->UnexpectedMajorFrame         = KitSch.Scheduler.UnexpectedMajorFrame;
+   KitSch.HkPkt.SlotsProcessedCount          = KitSch.Scheduler.SlotsProcessedCount;
+   KitSch.HkPkt.ScheduleActivitySuccessCount = KitSch.Scheduler.ScheduleActivitySuccessCount;
+   KitSch.HkPkt.ScheduleActivityFailureCount = KitSch.Scheduler.ScheduleActivityFailureCount;
+   KitSch.HkPkt.ValidMajorFrameCount         = KitSch.Scheduler.ValidMajorFrameCount;
+   KitSch.HkPkt.MissedMajorFrameCount        = KitSch.Scheduler.MissedMajorFrameCount;
+   KitSch.HkPkt.UnexpectedMajorFrameCount    = KitSch.Scheduler.UnexpectedMajorFrameCount;
+   KitSch.HkPkt.TablePassCount               = KitSch.Scheduler.TablePassCount;
+   KitSch.HkPkt.ConsecutiveNoisyFrameCounter = KitSch.Scheduler.ConsecutiveNoisyFrameCounter;
+   KitSch.HkPkt.SkippedSlotsCount            = KitSch.Scheduler.SkippedSlotsCount;
+   KitSch.HkPkt.MultipleSlotsCount           = KitSch.Scheduler.MultipleSlotsCount;
+   KitSch.HkPkt.SameSlotCount                = KitSch.Scheduler.SameSlotCount;
+   KitSch.HkPkt.SyncAttemptsLeft             = KitSch.Scheduler.SyncAttemptsLeft;
+   KitSch.HkPkt.LastSyncMETSlot              = KitSch.Scheduler.LastSyncMETSlot;
+   KitSch.HkPkt.IgnoreMajorFrame             = KitSch.Scheduler.IgnoreMajorFrame;
+   KitSch.HkPkt.UnexpectedMajorFrame         = KitSch.Scheduler.UnexpectedMajorFrame;
 
-   CFE_SB_TimeStampMsg((CFE_SB_Msg_t *) HkPkt);
-   CFE_SB_SendMsg((CFE_SB_Msg_t *) HkPkt);
+   CFE_SB_TimeStampMsg(CFE_MSG_PTR(HkPkt->TlmHeader));
+   CFE_SB_TransmitMsg(CFE_MSG_PTR(HkPkt->TlmHeader), true);
 
 } /* End SendHousekeepingPkt() */
 
@@ -258,7 +223,7 @@ static void SendHousekeepingPkt(KIT_SCH_HkPkt_t* HkPkt)
 static int32 InitApp(void)
 {
    
-   int32 Status = CFE_SEVERITY_ERROR;
+   int32 Status = CFE_SUCCESS;
    
    /*
    ** Initialize objects
@@ -267,8 +232,8 @@ static int32 InitApp(void)
    if (INITBL_Constructor(INITBL_OBJ, KIT_SCH_INI_FILENAME, &IniCfgEnum))
    {
 
-      KitSch.CmdMidValue    = INITBL_GetIntConfig(INITBL_OBJ, CFG_CMD_MID);
-      KitSch.SendHkMidValue = INITBL_GetIntConfig(INITBL_OBJ, CFG_SEND_HK_MID);
+      KitSch.CmdMid    = CFE_SB_ValueToMsgId(INITBL_GetIntConfig(INITBL_OBJ, CFG_CMD_MID));
+      KitSch.SendHkMid = CFE_SB_ValueToMsgId(INITBL_GetIntConfig(INITBL_OBJ, CFG_SEND_HK_MID));
       
       KitSch.StartupSyncTimeout = INITBL_GetIntConfig(INITBL_OBJ, CFG_STARTUP_SYNC_TIMEOUT);
       
@@ -303,7 +268,7 @@ static int32 InitApp(void)
       CMDMGR_RegisterFunc(CMDMGR_OBJ, SCHEDULER_SEND_MSG_TBL_ENTRY_CMD_FC, SCHEDULER_OBJ, SCHEDULER_SendMsgEntryCmd,   SCHEDULER_SEND_MSG_ENTRY_CMD_DATA_LEN);
       CMDMGR_RegisterFunc(CMDMGR_OBJ, SCHEDULER_SEND_DIAG_TLM_CMD_FC,      SCHEDULER_OBJ, SCHEDULER_SendDiagTlmCmd,    SCHEDULER_SEND_DIAG_TLM_CMD_DATA_LEN);
     
-      CFE_SB_InitMsg(&KitSch.HkPkt, CFE_SB_ValueToMsgId(INITBL_GetIntConfig(INITBL_OBJ, CFG_HK_TLM_MID)), KIT_SCH_HK_TLM_LEN, TRUE);
+      CFE_MSG_Init(CFE_MSG_PTR(KitSch.HkPkt.TlmHeader), CFE_SB_ValueToMsgId(INITBL_GetIntConfig(INITBL_OBJ, CFG_HK_TLM_MID)), KIT_SCH_HK_TLM_LEN);
 
       CFE_EVS_SendEvent(KIT_SCH_INIT_DEBUG_EID, KIT_SCH_INIT_EVS_TYPE,"KIT_SCH_InitApp() Before TBLMGR calls\n");
       TBLMGR_Constructor(TBLMGR_OBJ);
@@ -313,7 +278,7 @@ static int32 InitApp(void)
       /*
       ** Application startup event message
       */
-      Status = CFE_EVS_SendEvent(KIT_SCH_APP_INIT_EID, CFE_EVS_INFORMATION,
+      Status = CFE_EVS_SendEvent(KIT_SCH_APP_INIT_EID, CFE_EVS_EventType_INFORMATION,
                                "KIT_SCH Initialized. Version %d.%d.%d",
                                KIT_SCH_MAJOR_VER, KIT_SCH_MINOR_VER, KIT_SCH_PLATFORM_REV);
 
@@ -331,34 +296,44 @@ static int32 InitApp(void)
 static void ProcessCommands(void)
 {
 
-   int32           Status = CFE_SEVERITY_ERROR;
-   CFE_SB_Msg_t*   CmdMsgPtr;
-   int             MsgId;
-   
-   Status = CFE_SB_RcvMsg(&CmdMsgPtr, KitSch.CmdPipe, CFE_SB_POLL);
-        
-   if (Status == CFE_SUCCESS)
+   int32  RetStatus = CFE_ES_RunStatus_APP_RUN;
+   int32  SysStatus;
+
+   CFE_SB_Buffer_t* SbBufPtr;
+   CFE_SB_MsgId_t   MsgId = CFE_SB_INVALID_MSG_ID;
+
+   SysStatus = CFE_SB_ReceiveBuffer(&SbBufPtr, KitSch.CmdPipe, CFE_SB_POLL);
+
+   if (SysStatus == CFE_SUCCESS)
    {
-
-      MsgId = CFE_SB_MsgIdToValue(CFE_SB_GetMsgId(CmdMsgPtr));
-
-      if (MsgId == KitSch.CmdMidValue) 
+      SysStatus = CFE_MSG_GetMsgId(&SbBufPtr->Msg, &MsgId);
+      
+      if (SysStatus == CFE_SUCCESS)
       {
-         CMDMGR_DispatchFunc(CMDMGR_OBJ, CmdMsgPtr);
-      }
-      else if (MsgId == KitSch.SendHkMidValue)
-      {
-         SendHousekeepingPkt(&(KitSch.HkPkt));
-      }
-      else
-      {
-         CFE_EVS_SendEvent(KIT_SCH_APP_MID_ERR_EID, CFE_EVS_ERROR,
-                           "Received invalid command packet,MID = 0x%04X",MsgId);
-      }
 
-   } /* End if SB received a packet */
+         if (CFE_SB_MsgId_Equal(MsgId, KitSch.CmdMid))
+         {
+            CMDMGR_DispatchFunc(CMDMGR_OBJ, SbBufPtr);
+         } 
+         else if (CFE_SB_MsgId_Equal(MsgId, KitSch.SendHkMid))
+         {   
+            SendHousekeepingPkt();
+         }
+         else
+         {   
+            CFE_EVS_SendEvent(KIT_SCH_APP_MID_ERR_EID, CFE_EVS_EventType_ERROR,
+                              "Received invalid command packet, MID = 0x%08X", 
+                              CFE_SB_MsgIdToValue(MsgId));
+         }
 
-   return;
+      } /* End if got message ID */
+   } /* End if received buffer */
+   else
+   {
+      RetStatus = CFE_ES_RunStatus_APP_ERROR;
+   } 
+
+   return RetStatus;
 
 } /* End ProcessCommands() */
 

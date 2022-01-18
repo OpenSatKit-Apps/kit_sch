@@ -145,17 +145,19 @@
 
 typedef struct
 {
-   uint8    Header[CFE_SB_CMD_HDR_SIZE]; /* cFE Software Bus Command Message Header */
-   uint16   Slot;
-   uint16   Activity;
-   boolean  Enabled;   /* 0=FALSE(Disabled), 1=TRUE(Enabled) */
+   
+   CFE_MSG_CommandHeader_t  CmdHeader;
+   uint16  Slot;
+   uint16  Activity;
+   bool    Enabled;   /* 0=FALSE(Disabled), 1=TRUE(Enabled) */
 
-} OS_PACK SCHEDULER_ConfigSchEntryCmdMsg_t;
-#define SCHEDULER_CFG_SCH_ENTRY_CMD_DATA_LEN  (sizeof(SCHEDULER_ConfigSchEntryCmdMsg_t) - CFE_SB_CMD_HDR_SIZE)
-
+} SCHEDULER_ConfigSchEntryCmdMsg_t;
+#define SCHEDULER_CFG_SCH_ENTRY_CMD_DATA_LEN  (sizeof(SCHEDULER_ConfigSchEntryCmdMsg_t) - sizeof(CFE_MSG_CommandHeader_t))
 
 typedef struct
 {
+   
+   CFE_MSG_CommandHeader_t  CmdHeader;
    uint8   Header[CFE_SB_CMD_HDR_SIZE];  /* cFE Software Bus Command Message Header */
    uint16  Slot;
    uint16  Activity;
@@ -164,51 +166,51 @@ typedef struct
    uint16  Offset;
    uint16  MsgTblIndex;
 
-} OS_PACK SCHEDULER_LoadSchEntryCmdMsg_t;
-#define SCHEDULER_LOAD_SCH_ENTRY_CMD_DATA_LEN  (sizeof(SCHEDULER_LoadSchEntryCmdMsg_t) - CFE_SB_CMD_HDR_SIZE)
+} SCHEDULER_LoadSchEntryCmdMsg_t;
+#define SCHEDULER_LOAD_SCH_ENTRY_CMD_DATA_LEN  (sizeof(SCHEDULER_LoadSchEntryCmdMsg_t) - sizeof(CFE_MSG_CommandHeader_t))
 
 
 typedef struct
 {
    
-   uint8    Header[CFE_SB_CMD_HDR_SIZE]; /* cFE Software Bus Command Message Header */
+   CFE_MSG_CommandHeader_t  CmdHeader;
    uint16   Slot;
    uint16   Activity;
 
-} OS_PACK SCHEDULER_SendSchEntryCmdMsg_t;
-#define SCHEDULER_SEND_SCH_ENTRY_CMD_DATA_LEN  (sizeof(SCHEDULER_SendSchEntryCmdMsg_t) - CFE_SB_CMD_HDR_SIZE)
+} SCHEDULER_SendSchEntryCmdMsg_t;
+#define SCHEDULER_SEND_SCH_ENTRY_CMD_DATA_LEN  (sizeof(SCHEDULER_SendSchEntryCmdMsg_t) - sizeof(CFE_MSG_CommandHeader_t))
 
 
 typedef struct
 {
    
-   uint8           Header[CFE_SB_CMD_HDR_SIZE];  /* cFE Software Bus Command Message Header */
+   CFE_MSG_CommandHeader_t  CmdHeader;
    uint16          Index;
    CFE_SB_MsgId_t  MsgId;
 
-} OS_PACK SCHEDULER_LoadMsgEntryCmdMsg_t;
-#define SCHEDULER_LOAD_MSG_ENTRY_CMD_DATA_LEN  (sizeof(SCHEDULER_LoadMsgEntryCmdMsg_t) - CFE_SB_CMD_HDR_SIZE)
+} SCHEDULER_LoadMsgEntryCmdMsg_t;
+#define SCHEDULER_LOAD_MSG_ENTRY_CMD_DATA_LEN  (sizeof(SCHEDULER_LoadMsgEntryCmdMsg_t) - sizeof(CFE_MSG_CommandHeader_t))
 
 
 typedef struct
 {
    
-   uint8    Header[CFE_SB_CMD_HDR_SIZE]; /* cFE Software Bus Command Message Header */
+   CFE_MSG_CommandHeader_t  CmdHeader;
    uint16   Index;
 
-} OS_PACK SCHEDULER_SendMsgEntryCmdMsg_t;
-#define SCHEDULER_SEND_MSG_ENTRY_CMD_DATA_LEN (sizeof(SCHEDULER_SendMsgEntryCmdMsg_t) - CFE_SB_CMD_HDR_SIZE)
+} SCHEDULER_SendMsgEntryCmdMsg_t;
+#define SCHEDULER_SEND_MSG_ENTRY_CMD_DATA_LEN (sizeof(SCHEDULER_SendMsgEntryCmdMsg_t) - sizeof(CFE_MSG_CommandHeader_t))
 
 
 
 typedef struct
 {
    
-   uint8    Header[CFE_SB_CMD_HDR_SIZE]; /* cFE Software Bus Command Message Header */
+   CFE_MSG_CommandHeader_t  CmdHeader;
    uint16   Slot;
 
-} OS_PACK SCHEDULER_SendDiagTlmCmdMsg_t;
-#define SCHEDULER_SEND_DIAG_TLM_CMD_DATA_LEN  (sizeof(SCHEDULER_SendDiagTlmCmdMsg_t) - CFE_SB_CMD_HDR_SIZE)
+} SCHEDULER_SendDiagTlmCmdMsg_t;
+#define SCHEDULER_SEND_DIAG_TLM_CMD_DATA_LEN  (sizeof(SCHEDULER_SendDiagTlmCmdMsg_t) - sizeof(CFE_MSG_CommandHeader_t))
 
 
 /******************************************************************************
@@ -222,22 +224,21 @@ typedef struct
 typedef struct
 {
 
-   uint8   Header[CFE_SB_TLM_HDR_SIZE];
-   
-   uint8   Slot;
-   uint8   Activity;
+   CFE_MSG_TelemetryHeader_t TlmHeader;
+   uint8  Slot;
+   uint8  Activity;
    
    SCHTBL_Entry_t   SchTblEntry;
    MSGTBL_Entry_t   MsgTblEntry;
 
-} OS_PACK SCHEDULER_TblEntryPkt_t;
+} SCHEDULER_TblEntryPkt_t;
 #define SCHEDULER_TBL_ENTRY_TLM_LEN sizeof (SCHEDULER_TblEntryPkt_t)
 
 
 typedef struct
 {
 
-   uint8   Header[CFE_SB_TLM_HDR_SIZE];
+   CFE_MSG_TelemetryHeader_t TlmHeader;
 
    /*
    ** Scheduler processing data not in HK
@@ -259,7 +260,7 @@ typedef struct
    
    SCHTBL_Entry_t SchTblSlot[SCHTBL_ACTIVITIES_PER_SLOT];
 
-} OS_PACK SCHEDULER_DiagPkt_t;
+} SCHEDULER_DiagPkt_t;
 #define SCHEDULER_DIAG_TLM_LEN sizeof (SCHEDULER_DiagPkt_t)
 
 
@@ -301,9 +302,9 @@ typedef struct
    uint16  LastSyncMETSlot;               /* MET Slot # where Time Sync last occurred */
    uint16  SyncAttemptsLeft;              /* Timeout counter used when syncing Major Frame to MET */
 
-   boolean SendNoisyMajorFrameMsg;        /* Flag to send noisy major frame event msg once */
-   boolean IgnoreMajorFrame;              /* Major Frame too noisy to trust */
-   boolean UnexpectedMajorFrame;          /* Major Frame signal was unexpected */
+   bool    SendNoisyMajorFrameMsg;        /* Flag to send noisy major frame event msg once */
+   bool    IgnoreMajorFrame;              /* Major Frame too noisy to trust */
+   bool    UnexpectedMajorFrame;          /* Major Frame signal was unexpected */
    uint8   SyncToMET;                     /* Slots should be aligned with subseconds */
    uint8   MajorFrameSource;              /* Major Frame Signal source identifier */
 
@@ -341,7 +342,7 @@ typedef struct
 **      because a reference is stored by schtbl.c.
 **
 */
-void SCHEDULER_Constructor(SCHEDULER_Class_t* ObjPtr, INITBL_Class_t* IniTbl);
+void SCHEDULER_Constructor(SCHEDULER_Class_t* ObjPtr, const INITBL_Class_t* IniTbl);
 
 
 /******************************************************************************
@@ -363,7 +364,7 @@ void SCHEDULER_ResetStatus(void);
 ** Execute the scheduler to process schduler table and dispatch messages.
 **
 */
-boolean SCHEDULER_Execute(void);
+bool SCHEDULER_Execute(void);
 
 
 /******************************************************************************
@@ -380,7 +381,7 @@ int32 SCHEDULER_StartTimers(void);
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-boolean SCHEDULER_ConfigSchEntryCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr);
+bool SCHEDULER_ConfigSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
 
 
 /******************************************************************************
@@ -390,7 +391,7 @@ boolean SCHEDULER_ConfigSchEntryCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgP
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-boolean SCHEDULER_LoadSchEntryCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr);
+bool SCHEDULER_LoadSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
 
 
 /******************************************************************************
@@ -405,7 +406,7 @@ boolean SCHEDULER_LoadSchEntryCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-boolean SCHEDULER_SendSchEntryCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr);
+bool SCHEDULER_SendSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
 
 
 /******************************************************************************
@@ -415,7 +416,7 @@ boolean SCHEDULER_SendSchEntryCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-boolean SCHEDULER_LoadMsgEntryCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr);
+bool SCHEDULER_LoadMsgEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
 
 
 /******************************************************************************
@@ -430,7 +431,7 @@ boolean SCHEDULER_LoadMsgEntryCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-boolean SCHEDULER_SendMsgEntryCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr);
+bool SCHEDULER_SendMsgEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
 
 
 /******************************************************************************
@@ -440,7 +441,7 @@ boolean SCHEDULER_SendMsgEntryCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-boolean SCHEDULER_SendDiagTlmCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr);
+bool SCHEDULER_SendDiagTlmCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
 
 
 #endif /* _scheduler_ */

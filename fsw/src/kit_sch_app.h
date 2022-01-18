@@ -64,7 +64,7 @@
 typedef struct
 {
 
-   uint8    Header[CFE_SB_TLM_HDR_SIZE];
+   CFE_MSG_TelemetryHeader_t TlmHeader;
 
    /*
    ** CMDMGR Data
@@ -101,10 +101,10 @@ typedef struct
    uint16  SameSlotCount;
    uint16  SyncAttemptsLeft;
    uint16  LastSyncMETSlot;
-   boolean IgnoreMajorFrame;
-   boolean UnexpectedMajorFrame;
+   bool    IgnoreMajorFrame;
+   bool    UnexpectedMajorFrame;
 
-} OS_PACK KIT_SCH_HkPkt_t;
+} KIT_SCH_HkPkt_t;
 #define KIT_SCH_HK_TLM_LEN sizeof (KIT_SCH_HkPkt_t)
 
 
@@ -136,8 +136,8 @@ typedef struct
    */
    
    uint32   StartupSyncTimeout;
-   uint32   CmdMidValue;      
-   uint32   SendHkMidValue;
+   CFE_SB_MsgId_t   CmdMid;
+   CFE_SB_MsgId_t   SendHkMid;
    
    SCHEDULER_Class_t  Scheduler;
   
@@ -170,7 +170,7 @@ void KIT_SCH_Main(void);
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-boolean KIT_SCH_NoOpCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr);
+bool KIT_SCH_NoOpCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
 
 
 /******************************************************************************
@@ -180,7 +180,7 @@ boolean KIT_SCH_NoOpCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr);
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-boolean KIT_SCH_ResetAppCmd(void* ObjDataPtr, const CFE_SB_MsgPtr_t MsgPtr);
+bool KIT_SCH_ResetAppCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
 
 
 #endif /* _kit_sch_app_ */
