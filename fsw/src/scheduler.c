@@ -193,10 +193,10 @@ void SCHEDULER_ResetStatus()
 ** Function: SCHEDULER_ConfigSchEntryCmd
 **
 */
-bool SCHEDULER_ConfigSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr)
+bool SCHEDULER_ConfigSchEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
 {
 
-   const   SCHEDULER_ConfigSchEntryCmdMsg_t *ConfigSchEntryCmd = (const SCHEDULER_ConfigSchEntryCmdMsg_t *) SbBufPtr;
+   const   SCHEDULER_ConfigSchEntryCmdMsg_t *ConfigSchEntryCmd = (const SCHEDULER_ConfigSchEntryCmdMsg_t *) MsgPtr;
    uint16  Index;
    bool    RetStatus = false;
    
@@ -261,10 +261,10 @@ bool SCHEDULER_ConfigSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufP
 ** Notes:
 **   1. Utiity functions send events for errors.
 */
-bool SCHEDULER_LoadSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr)
+bool SCHEDULER_LoadSchEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
 {
 
-   const   SCHEDULER_LoadSchEntryCmdMsg_t *LoadSchEntryCmd = (const SCHEDULER_LoadSchEntryCmdMsg_t *) SbBufPtr;
+   const   SCHEDULER_LoadSchEntryCmdMsg_t *LoadSchEntryCmd = (const SCHEDULER_LoadSchEntryCmdMsg_t *) MsgPtr;
    uint16  Index;
    bool    RetStatus = false;
    
@@ -311,10 +311,10 @@ bool SCHEDULER_LoadSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-bool SCHEDULER_SendSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr)
+bool SCHEDULER_SendSchEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
 {
 
-   const   SCHEDULER_SendSchEntryCmdMsg_t *SendSchEntryCmd = (const SCHEDULER_SendSchEntryCmdMsg_t *) SbBufPtr;   
+   const   SCHEDULER_SendSchEntryCmdMsg_t *SendSchEntryCmd = (const SCHEDULER_SendSchEntryCmdMsg_t *) MsgfPtr;   
    uint16  Index;
    bool    RetStatus = false;
    
@@ -348,10 +348,10 @@ bool SCHEDULER_SendSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-bool SCHEDULER_LoadMsgEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr)
+bool SCHEDULER_LoadMsgEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
 {
 
-   const   SCHEDULER_LoadMsgEntryCmdMsg_t *LoadMsgEntryCmd = (const SCHEDULER_LoadMsgEntryCmdMsg_t *) SbBufPtr;   
+   const   SCHEDULER_LoadMsgEntryCmdMsg_t *LoadMsgEntryCmd = (const SCHEDULER_LoadMsgEntryCmdMsg_t *) MsgPtr;   
    boolean RetStatus = false;
    uint16  Index;
 
@@ -397,10 +397,10 @@ bool SCHEDULER_LoadMsgEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-bool SCHEDULER_SendMsgEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr)
+bool SCHEDULER_SendMsgEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
 {
 
-   const   SCHEDULER_SendMsgEntryCmdMsg_t *SendMsgEntryCmd = (const SCHEDULER_SendMsgEntryCmdMsg_t *) SbBufPtr;   
+   const   SCHEDULER_SendMsgEntryCmdMsg_t *SendMsgEntryCmd = (const SCHEDULER_SendMsgEntryCmdMsg_t *) MsgPtr;   
    bool    RetStatus = false;
    uint16  MsgIndex;
    uint16 *DataBuf=NULL;
@@ -510,10 +510,10 @@ bool SCHEDULER_SendMsgEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-bool SCHEDULER_SendDiagTlmCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr)
+bool SCHEDULER_SendDiagTlmCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
 {
 
-   const SCHEDULER_SendDiagTlmCmdMsg_t *SendDiagTlmCmd = (const SCHEDULER_SendDiagTlmCmdMsg_t *) SbBufPtr;   
+   const SCHEDULER_SendDiagTlmCmdMsg_t *SendDiagTlmCmd = (const SCHEDULER_SendDiagTlmCmdMsg_t *) MsgPtr;   
    bool  RetStatus = false;
 
    if (SendDiagTlmCmd->Slot < SCHTBL_SLOTS)

@@ -286,9 +286,9 @@ bool MSGTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename)
    } /* End if file create */
    else
    {
-      OS_GetErrorName(OsStatus,&OsErrStr);
+      OS_GetErrorName(OsStatus, &OsErrStr);
       CFE_EVS_SendEvent(MSGTBL_DUMP_ERR_EID, CFE_EVS_EventType_ERROR,
-                        "Error creating dump file '%s', status=%s",
+                        "Error creating dump file %s. Status = %s",
                         Filename, OsErrStr);
    
    } /* End if file create error */

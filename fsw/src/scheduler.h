@@ -158,7 +158,6 @@ typedef struct
 {
    
    CFE_MSG_CommandHeader_t  CmdHeader;
-   uint8   Header[CFE_SB_CMD_HDR_SIZE];  /* cFE Software Bus Command Message Header */
    uint16  Slot;
    uint16  Activity;
    uint16  Enabled;    /* 0=FALSE(Disabled), 1=TRUE(Enabled) */
@@ -381,7 +380,7 @@ int32 SCHEDULER_StartTimers(void);
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-bool SCHEDULER_ConfigSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
+bool SCHEDULER_ConfigSchEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr);
 
 
 /******************************************************************************
@@ -391,7 +390,7 @@ bool SCHEDULER_ConfigSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufP
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-bool SCHEDULER_LoadSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
+bool SCHEDULER_LoadSchEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr);
 
 
 /******************************************************************************
@@ -406,7 +405,7 @@ bool SCHEDULER_LoadSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-bool SCHEDULER_SendSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
+bool SCHEDULER_SendSchEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr);
 
 
 /******************************************************************************
@@ -416,7 +415,7 @@ bool SCHEDULER_SendSchEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-bool SCHEDULER_LoadMsgEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
+bool SCHEDULER_LoadMsgEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr);
 
 
 /******************************************************************************
@@ -431,7 +430,7 @@ bool SCHEDULER_LoadMsgEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-bool SCHEDULER_SendMsgEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
+bool SCHEDULER_SendMsgEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr);
 
 
 /******************************************************************************
@@ -441,7 +440,7 @@ bool SCHEDULER_SendMsgEntryCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-bool SCHEDULER_SendDiagTlmCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
+bool SCHEDULER_SendDiagTlmCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr);
 
 
 #endif /* _scheduler_ */

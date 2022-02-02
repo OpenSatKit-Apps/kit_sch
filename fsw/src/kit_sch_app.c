@@ -107,7 +107,7 @@ void KIT_SCH_AppMain(void)
    /*
    ** Main process loop
    */
-   CFE_EVS_SendEvent(KIT_SCH_APP_DEBUG_EID, CFE_EVS_DEBUG,"KIT_SCH: About to enter loop\n");
+   CFE_EVS_SendEvent(KIT_SCH_APP_DEBUG_EID, CFE_EVS_EventType_DEBUG,"KIT_SCH: About to enter loop\n");
    while (CFE_ES_RunLoop(&RunStatus))
    {
 
@@ -122,9 +122,9 @@ void KIT_SCH_AppMain(void)
 
    /* Write to system log in case events not working */
 
-   CFE_ES_WriteToSysLog("KIT_SCH App terminating, err = 0x%08X\n", Status);
+   CFE_ES_WriteToSysLog("KIT_SCH App terminating, err = 0x%08X\n", RunStatus);
 
-   CFE_EVS_SendEvent(KIT_SCH_APP_EXIT_EID, CFE_EVS_CRITICAL, "KIT_SCH App: terminating, err = 0x%08X", Status);
+   CFE_EVS_SendEvent(KIT_SCH_APP_EXIT_EID, CFE_EVS_EventType_CRITICAL, "KIT_SCH App: terminating, err = 0x%08X", RunStatus);
 
    CFE_ES_ExitApp(RunStatus);  /* Let cFE kill the task (and any child tasks) */
 
@@ -135,7 +135,7 @@ void KIT_SCH_AppMain(void)
 ** Function: KIT_SCH_NoOpCmd
 **
 */
-bool KIT_SCH_NoOpCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr)
+bool KIT_SCH_NoOpCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
 {
 
    CFE_EVS_SendEvent (KIT_SCH_APP_NOOP_EID, CFE_EVS_EventType_INFORMATION,
@@ -151,7 +151,7 @@ bool KIT_SCH_NoOpCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr)
 ** Function: KIT_SCH_ResetAppCmd
 **
 */
-bool KIT_SCH_ResetAppCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr)
+bool KIT_SCH_ResetAppCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
 {
 
    CMDMGR_ResetStatus(CMDMGR_OBJ);
@@ -210,8 +210,8 @@ static void SendHousekeepingPkt(void)
    KitSch.HkPkt.IgnoreMajorFrame             = KitSch.Scheduler.IgnoreMajorFrame;
    KitSch.HkPkt.UnexpectedMajorFrame         = KitSch.Scheduler.UnexpectedMajorFrame;
 
-   CFE_SB_TimeStampMsg(CFE_MSG_PTR(HkPkt->TlmHeader));
-   CFE_SB_TransmitMsg(CFE_MSG_PTR(HkPkt->TlmHeader), true);
+   CFE_SB_TimeStampMsg(CFE_MSG_PTR(KitSch.HkPkt.TlmHeader));
+   CFE_SB_TransmitMsg(CFE_MSG_PTR(KitSch.HkPkt.TlmHeader), true);
 
 } /* End SendHousekeepingPkt() */
 
@@ -251,8 +251,8 @@ static int32 InitApp(void)
    {
    
       CFE_SB_CreatePipe(&KitSch.CmdPipe, INITBL_GetIntConfig(INITBL_OBJ, CFG_CMD_PIPE_DEPTH), INITBL_GetStrConfig(INITBL_OBJ, CFG_CMD_PIPE_NAME));
-      CFE_SB_Subscribe(CFE_SB_ValueToMsgId(KitSch.CmdMidValue),    KitSch.CmdPipe);
-      CFE_SB_Subscribe(CFE_SB_ValueToMsgId(KitSch.SendHkMidValue), KitSch.CmdPipe);
+      CFE_SB_Subscribe(KitSch.CmdMid,    KitSch.CmdPipe);
+      CFE_SB_Subscribe(KitSch.SendHkMid, KitSch.CmdPipe);
 
       CMDMGR_Constructor(CMDMGR_OBJ);
       CMDMGR_RegisterFunc(CMDMGR_OBJ, CMDMGR_NOOP_CMD_FC,  NULL, KIT_SCH_NoOpCmd,     0);
@@ -293,7 +293,7 @@ static int32 InitApp(void)
 ** Function: ProcessCommands
 **
 */
-static void ProcessCommands(void)
+static int32 ProcessCommands(void)
 {
 
    int32  RetStatus = CFE_ES_RunStatus_APP_RUN;
@@ -313,7 +313,7 @@ static void ProcessCommands(void)
 
          if (CFE_SB_MsgId_Equal(MsgId, KitSch.CmdMid))
          {
-            CMDMGR_DispatchFunc(CMDMGR_OBJ, SbBufPtr);
+            CMDMGR_DispatchFunc(CMDMGR_OBJ, &SbBufPtr->Msg);
          } 
          else if (CFE_SB_MsgId_Equal(MsgId, KitSch.SendHkMid))
          {   

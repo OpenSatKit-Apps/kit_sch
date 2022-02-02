@@ -170,7 +170,7 @@ void KIT_SCH_Main(void);
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-bool KIT_SCH_NoOpCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
+bool KIT_SCH_NoOpCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr);
 
 
 /******************************************************************************
@@ -180,7 +180,7 @@ bool KIT_SCH_NoOpCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
 **   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
 **
 */
-bool KIT_SCH_ResetAppCmd(void* ObjDataPtr, const CFE_SB_Buffer_t* SbBufPtr);
+bool KIT_SCH_ResetAppCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr);
 
 
 #endif /* _kit_sch_app_ */
