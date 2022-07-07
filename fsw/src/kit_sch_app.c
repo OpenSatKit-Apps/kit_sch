@@ -1,37 +1,40 @@
-/* 
-** Purpose: Implement OpenSat Kit Scheduler application.
+/*
+**  Copyright 2022 bitValence, Inc.
+**  All Rights Reserved.
 **
-** Notes:
-**   1. This is non-flight code so an attempt has been made to balance keeping
-**      it simple while making it robust. Limiting the number of configuration
-**      parameters and integration items (message IDs, perf IDs, etc) was
-**      also taken into consideration.
-**   2. Event message filters are not used since this is for test environments.
-**      This may be reconsidered if event flooding ever becomes a problem.
-**   3. Performance traces are not included.
-**   4. Most functions are global to assist in unit testing
-**   5. Functions I removed from original that need to be thought through:
-**        SCH_ValidateMessageData()
-**        SCH_ValidateScheduleData()
-**        SCH_ProcessCommands()
-**        SCH_TblInit()
-**        InitEventFilters()
+**  This program is free software; you can modify and/or redistribute it
+**  under the terms of the GNU Affero General Public License
+**  as published by the Free Software Foundation; version 3 with
+**  attribution addendums as found in the LICENSE.txt
 **
-** References:
-**   1. OpenSatKit Object-based Application Developer's Guide.
-**   2. cFS Application Developer's Guide.
+**  This program is distributed in the hope that it will be useful,
+**  but WITHOUT ANY WARRANTY; without even the implied warranty of
+**  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**  GNU Affero General Public License for more details.
 **
-**   Written by David McComas, licensed under the Apache License, Version 2.0
-**   (the "License"); you may not use this file except in compliance with the
-**   License. You may obtain a copy of the License at
+**  Purpose:
+**    Implement OpenSat Kit Scheduler application
 **
-**      http://www.apache.org/licenses/LICENSE-2.0
+**  Notes:
+**    1. This is non-flight code so an attempt has been made to balance keeping
+**       it simple while making it robust. Limiting the number of configuration
+**       parameters and integration items (message IDs, perf IDs, etc) was
+**       also taken into consideration.
+**    2. Event message filters are not used since this is for test environments.
+**       This may be reconsidered if event flooding ever becomes a problem.
+**    3. Performance traces are not included.
+**    4. Most functions are global to assist in unit testing
+**    5. Functions I removed from original that need to be thought through:
+**         SCH_ValidateMessageData()
+**         SCH_ValidateScheduleData()
+**         SCH_ProcessCommands()
+**         SCH_TblInit()
+**         InitEventFilters()
 **
-**   Unless required by applicable law or agreed to in writing, software
-**   distributed under the License is distributed on an "AS IS" BASIS,
-**   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-**   See the License for the specific language governing permissions and
-**   limitations under the License.
+**  References:
+**    1. OpenSatKit Object-based Application Developer's Guide
+**    2. cFS Application Developer's Guide
+**
 */
 
 /*
@@ -110,7 +113,7 @@ void KIT_SCH_AppMain(void)
    CFE_EVS_SendEvent(KIT_SCH_APP_DEBUG_EID, CFE_EVS_EventType_DEBUG,"KIT_SCH: About to enter loop\n");
    while (CFE_ES_RunLoop(&RunStatus))
    {
-
+  
       if (!SCHEDULER_Execute())
       {
          RunStatus = CFE_ES_RunStatus_APP_ERROR;
@@ -165,65 +168,13 @@ bool KIT_SCH_ResetAppCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
 
 
 /******************************************************************************
-** Function: SendHousekeepingPkt
-**
-*/
-static void SendHousekeepingPkt(void)
-{
-
-   /*
-   ** KIT_SCH Data
-   */
-
-   KitSch.HkPkt.ValidCmdCnt   = KitSch.CmdMgr.ValidCmdCnt;
-   KitSch.HkPkt.InvalidCmdCnt = KitSch.CmdMgr.InvalidCmdCnt;
-
-   /*
-   ** TBLMGR Data
-   */
-
-   KitSch.HkPkt.MsgTblLastLoadStatus = KitSch.Scheduler.MsgTbl.LastLoadStatus;
-   KitSch.HkPkt.MsgTblAttrErrCnt     = KitSch.Scheduler.MsgTbl.LastLoadCnt;
-   
-   KitSch.HkPkt.SchTblLastLoadStatus = KitSch.Scheduler.SchTbl.LastLoadStatus;
-   KitSch.HkPkt.SchTblAttrErrCnt     = KitSch.Scheduler.SchTbl.LastLoadCnt;
-
-   /*
-   ** Scheduler Data
-   ** - At a minimum every scheduler variable effected by a reset must be included
-   ** - These have been rearranged to align data words
-   */
-
-   KitSch.HkPkt.SlotsProcessedCount          = KitSch.Scheduler.SlotsProcessedCount;
-   KitSch.HkPkt.ScheduleActivitySuccessCount = KitSch.Scheduler.ScheduleActivitySuccessCount;
-   KitSch.HkPkt.ScheduleActivityFailureCount = KitSch.Scheduler.ScheduleActivityFailureCount;
-   KitSch.HkPkt.ValidMajorFrameCount         = KitSch.Scheduler.ValidMajorFrameCount;
-   KitSch.HkPkt.MissedMajorFrameCount        = KitSch.Scheduler.MissedMajorFrameCount;
-   KitSch.HkPkt.UnexpectedMajorFrameCount    = KitSch.Scheduler.UnexpectedMajorFrameCount;
-   KitSch.HkPkt.TablePassCount               = KitSch.Scheduler.TablePassCount;
-   KitSch.HkPkt.ConsecutiveNoisyFrameCounter = KitSch.Scheduler.ConsecutiveNoisyFrameCounter;
-   KitSch.HkPkt.SkippedSlotsCount            = KitSch.Scheduler.SkippedSlotsCount;
-   KitSch.HkPkt.MultipleSlotsCount           = KitSch.Scheduler.MultipleSlotsCount;
-   KitSch.HkPkt.SameSlotCount                = KitSch.Scheduler.SameSlotCount;
-   KitSch.HkPkt.SyncAttemptsLeft             = KitSch.Scheduler.SyncAttemptsLeft;
-   KitSch.HkPkt.LastSyncMETSlot              = KitSch.Scheduler.LastSyncMETSlot;
-   KitSch.HkPkt.IgnoreMajorFrame             = KitSch.Scheduler.IgnoreMajorFrame;
-   KitSch.HkPkt.UnexpectedMajorFrame         = KitSch.Scheduler.UnexpectedMajorFrame;
-
-   CFE_SB_TimeStampMsg(CFE_MSG_PTR(KitSch.HkPkt.TlmHeader));
-   CFE_SB_TransmitMsg(CFE_MSG_PTR(KitSch.HkPkt.TlmHeader), true);
-
-} /* End SendHousekeepingPkt() */
-
-
-/******************************************************************************
 ** Function: InitApp
 **
 */
 static int32 InitApp(void)
 {
    
-   int32 Status = CFE_SUCCESS;
+   int32 Status = OSK_C_FW_CFS_ERROR;
    
    /*
    ** Initialize objects
@@ -270,7 +221,7 @@ static int32 InitApp(void)
     
       CFE_MSG_Init(CFE_MSG_PTR(KitSch.HkPkt.TlmHeader), CFE_SB_ValueToMsgId(INITBL_GetIntConfig(INITBL_OBJ, CFG_HK_TLM_MID)), KIT_SCH_HK_TLM_LEN);
 
-      CFE_EVS_SendEvent(KIT_SCH_INIT_DEBUG_EID, KIT_SCH_INIT_EVS_TYPE,"KIT_SCH_InitApp() Before TBLMGR calls\n");
+      CFE_EVS_SendEvent(KIT_SCH_INIT_DEBUG_EID, KIT_SCH_INIT_EVS_TYPE,"KIT_SCH_InitApp() Before TBLMGR calls");
       TBLMGR_Constructor(TBLMGR_OBJ);
       TBLMGR_RegisterTblWithDef(TBLMGR_OBJ, MSGTBL_LoadCmd, MSGTBL_DumpCmd, INITBL_GetStrConfig(INITBL_OBJ, CFG_MSG_TBL_LOAD_FILE));
       TBLMGR_RegisterTblWithDef(TBLMGR_OBJ, SCHTBL_LoadCmd, SCHTBL_DumpCmd, INITBL_GetStrConfig(INITBL_OBJ, CFG_SCH_TBL_LOAD_FILE));
@@ -330,10 +281,63 @@ static int32 ProcessCommands(void)
    } /* End if received buffer */
    else
    {
-      RetStatus = CFE_ES_RunStatus_APP_ERROR;
+      if (SysStatus == CFE_SB_PIPE_RD_ERR)
+         RetStatus = CFE_ES_RunStatus_APP_ERROR;
    } 
 
    return RetStatus;
 
 } /* End ProcessCommands() */
+
+
+/******************************************************************************
+** Function: SendHousekeepingPkt
+**
+*/
+static void SendHousekeepingPkt(void)
+{
+
+   /*
+   ** KIT_SCH Data
+   */
+
+   KitSch.HkPkt.ValidCmdCnt   = KitSch.CmdMgr.ValidCmdCnt;
+   KitSch.HkPkt.InvalidCmdCnt = KitSch.CmdMgr.InvalidCmdCnt;
+
+   /*
+   ** TBLMGR Data
+   */
+
+   KitSch.HkPkt.MsgTblLastLoadStatus = KitSch.Scheduler.MsgTbl.LastLoadStatus;
+   KitSch.HkPkt.MsgTblAttrErrCnt     = KitSch.Scheduler.MsgTbl.LastLoadCnt;
+   
+   KitSch.HkPkt.SchTblLastLoadStatus = KitSch.Scheduler.SchTbl.LastLoadStatus;
+   KitSch.HkPkt.SchTblAttrErrCnt     = KitSch.Scheduler.SchTbl.LastLoadCnt;
+
+   /*
+   ** Scheduler Data
+   ** - At a minimum every scheduler variable effected by a reset must be included
+   ** - These have been rearranged to align data words
+   */
+
+   KitSch.HkPkt.SlotsProcessedCount          = KitSch.Scheduler.SlotsProcessedCount;
+   KitSch.HkPkt.ScheduleActivitySuccessCount = KitSch.Scheduler.ScheduleActivitySuccessCount;
+   KitSch.HkPkt.ScheduleActivityFailureCount = KitSch.Scheduler.ScheduleActivityFailureCount;
+   KitSch.HkPkt.ValidMajorFrameCount         = KitSch.Scheduler.ValidMajorFrameCount;
+   KitSch.HkPkt.MissedMajorFrameCount        = KitSch.Scheduler.MissedMajorFrameCount;
+   KitSch.HkPkt.UnexpectedMajorFrameCount    = KitSch.Scheduler.UnexpectedMajorFrameCount;
+   KitSch.HkPkt.TablePassCount               = KitSch.Scheduler.TablePassCount;
+   KitSch.HkPkt.ConsecutiveNoisyFrameCounter = KitSch.Scheduler.ConsecutiveNoisyFrameCounter;
+   KitSch.HkPkt.SkippedSlotsCount            = KitSch.Scheduler.SkippedSlotsCount;
+   KitSch.HkPkt.MultipleSlotsCount           = KitSch.Scheduler.MultipleSlotsCount;
+   KitSch.HkPkt.SameSlotCount                = KitSch.Scheduler.SameSlotCount;
+   KitSch.HkPkt.SyncAttemptsLeft             = KitSch.Scheduler.SyncAttemptsLeft;
+   KitSch.HkPkt.LastSyncMETSlot              = KitSch.Scheduler.LastSyncMETSlot;
+   KitSch.HkPkt.IgnoreMajorFrame             = KitSch.Scheduler.IgnoreMajorFrame;
+   KitSch.HkPkt.UnexpectedMajorFrame         = KitSch.Scheduler.UnexpectedMajorFrame;
+
+   CFE_SB_TimeStampMsg(CFE_MSG_PTR(KitSch.HkPkt.TlmHeader));
+   CFE_SB_TransmitMsg(CFE_MSG_PTR(KitSch.HkPkt.TlmHeader), true);
+
+} /* End SendHousekeepingPkt() */
 

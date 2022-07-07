@@ -1,26 +1,29 @@
-/* 
-** Purpose: Define a scheduler. Owns scheduler & message tables.
+/*
+**  Copyright 2022 bitValence, Inc.
+**  All Rights Reserved.
 **
-** Notes:
-**   1. This design intentionally decouples the scheduler table from 
-**      application specific processing such as command callback 
-**      functions and file processing.
+**  This program is free software; you can modify and/or redistribute it
+**  under the terms of the GNU Affero General Public License
+**  as published by the Free Software Foundation; version 3 with
+**  attribution addendums as found in the LICENSE.txt
 **
-** References:
-**   1. OpenSatKit Object-based Application Developer's Guide.
-**   2. cFS Application Developer's Guide.
+**  This program is distributed in the hope that it will be useful,
+**  but WITHOUT ANY WARRANTY; without even the implied warranty of
+**  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**  GNU Affero General Public License for more details.
 **
-**   Written by David McComas, licensed under the Apache License, Version 2.0
-**   (the "License"); you may not use this file except in compliance with the
-**   License. You may obtain a copy of the License at
+**  Purpose:
+**    Define the scheduler. Owns scheduler & message tables
 **
-**      http://www.apache.org/licenses/LICENSE-2.0
+**  Notes:
+**    1. This design intentionally decouples the scheduler table from 
+**       application specific processing such as command callback 
+**       functions and file processing.
 **
-**   Unless required by applicable law or agreed to in writing, software
-**   distributed under the License is distributed on an "AS IS" BASIS,
-**   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-**   See the License for the specific language governing permissions and
-**   limitations under the License.
+**  References:
+**    1. OpenSatKit Object-based Application Developer's Guide
+**    2. cFS Application Developer's Guide
+**
 */
 
 #ifndef _scheduler_
@@ -127,9 +130,10 @@
 #define SCHEDULER_CONFIG_SCH_TBL_BOOL_ERR_EID        (SCHEDULER_BASE_EID + 10)
 #define SCHEDULER_LOAD_MSG_CMD_INDEX_ERR_EID         (SCHEDULER_BASE_EID + 11)
 #define SCHEDULER_SEND_MSG_EVENT_CMD_INDEX_ERR_EID   (SCHEDULER_BASE_EID + 12)
-#define SCHEDULER_SEND_DIAG_TLM_ERR_EID              (SCHEDULER_BASE_EID + 13)
+#define SCHEDULER_SEND_MSG_TYPE_ERR_EID              (SCHEDULER_BASE_EID + 13)
+#define SCHEDULER_SEND_DIAG_TLM_ERR_EID              (SCHEDULER_BASE_EID + 14)
 
-#define SCHEDULER_DEBUG_EID                          (SCHEDULER_BASE_EID + 14)
+#define SCHEDULER_DEBUG_EID                          (SCHEDULER_BASE_EID + 15)
 
 #define SCHEDULER_UNDEF_SCHTBL_ENTRY_VAL 255
 #define SCHEDULER_UNDEF_MSGTBL_ENTRY_VAL   0
@@ -184,8 +188,8 @@ typedef struct
 {
    
    CFE_MSG_CommandHeader_t  CmdHeader;
-   uint16          Index;
-   CFE_SB_MsgId_t  MsgId;
+   uint16   Index;
+   uint16   MsgId;
 
 } SCHEDULER_LoadMsgEntryCmdMsg_t;
 #define SCHEDULER_LOAD_MSG_ENTRY_CMD_DATA_LEN  (sizeof(SCHEDULER_LoadMsgEntryCmdMsg_t) - sizeof(CFE_MSG_CommandHeader_t))

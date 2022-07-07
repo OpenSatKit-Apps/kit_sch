@@ -1,29 +1,33 @@
-/* 
-** Purpose: Define KIT_SCH's Scheduler Table that defines when messages
-**          defined in the message table are sent on the software bus.
+/*
+**  Copyright 2022 bitValence, Inc.
+**  All Rights Reserved.
 **
-** Notes:
-**   1. Use the Singleton design pattern. A pointer to the table object
-**      is passed to the constructor and saved for all other operations.
-**      This is a table-specific file so it doesn't need to be re-entrant.
-**   2. The table file is a JSON text file.
+**  This program is free software; you can modify and/or redistribute it
+**  under the terms of the GNU Affero General Public License
+**  as published by the Free Software Foundation; version 3 with
+**  attribution addendums as found in the LICENSE.txt
 **
-** References:
-**   1. OpenSatKit Object-based Application Developer's Guide.
-**   2. cFS Application Developer's Guide.
+**  This program is distributed in the hope that it will be useful,
+**  but WITHOUT ANY WARRANTY; without even the implied warranty of
+**  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**  GNU Affero General Public License for more details.
 **
-**   Written by David McComas, licensed under the Apache License, Version 2.0
-**   (the "License"); you may not use this file except in compliance with the
-**   License. You may obtain a copy of the License at
+**  Purpose:
+**    Define KIT_SCH's Scheduler Table that defines when messages
+**    defined in the message table are sent on the software bus.
 **
-**      http://www.apache.org/licenses/LICENSE-2.0
+**  Notes:
+**    1. Use the Singleton design pattern. A pointer to the table object
+**       is passed to the constructor and saved for all other operations.
+**       This is a table-specific file so it doesn't need to be re-entrant.
+**    2. The table file is a JSON text file.
 **
-**   Unless required by applicable law or agreed to in writing, software
-**   distributed under the License is distributed on an "AS IS" BASIS,
-**   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-**   See the License for the specific language governing permissions and
-**   limitations under the License.
+**  References:
+**    1. OpenSatKit Object-based Application Developer's Guide
+**    2. cFS Application Developer's Guide
+**
 */
+
 #ifndef _schtbl_
 #define _schtbl_
 
@@ -48,14 +52,18 @@
 ** Event Message IDs
 */
 
-#define SCHTBL_LOAD_EID       (SCHTBL_BASE_EID + 0)
-#define SCHTBL_LOAD_ERR_EID   (SCHTBL_BASE_EID + 1)
-#define SCHTBL_DUMP_EID       (SCHTBL_BASE_EID + 2)
-#define SCHTBL_DUMP_ERR_EID   (SCHTBL_BASE_EID + 3)
-#define SCHTBL_INDEX_ERR_EID  (SCHTBL_BASE_EID + 4)
-#define SCHTBL_ENTRY_ERR_EID  (SCHTBL_BASE_EID + 5)
+#define SCHTBL_LOAD_EID              (SCHTBL_BASE_EID + 0)
+#define SCHTBL_LOAD_ERR_EID          (SCHTBL_BASE_EID + 1)
+#define SCHTBL_DUMP_EID              (SCHTBL_BASE_EID + 2)
+#define SCHTBL_DUMP_ERR_EID          (SCHTBL_BASE_EID + 3)
+#define SCHTBL_INDEX_ERR_EID         (SCHTBL_BASE_EID + 4)
+#define SCHTBL_ENTRY_ERR_EID         (SCHTBL_BASE_EID + 5)
+#define SCHTBL_CMD_ACTIVITY_ERR_EID  (SCHTBL_BASE_EID + 6)
+#define SCHTBL_CMD_SLOT_ERR_EID      (SCHTBL_BASE_EID + 7)
+#define SCHTBL_MSG_TBL_INDEX_ERR_EID (SCHTBL_BASE_EID + 8)
+#define SCHTBL_OFFSET_ERR_EID        (SCHTBL_BASE_EID + 9)
 
-              
+  
 /**********************/
 /** Type Definitions **/
 /**********************/

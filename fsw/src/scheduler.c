@@ -1,29 +1,32 @@
-/* 
-** Purpose: Implement the scheduler
+/*
+**  Copyright 2022 bitValence, Inc.
+**  All Rights Reserved.
 **
-** Notes:
-**   1. Orginally based on NASA Goddard's SCH_LAB app
-**   2. This design intentionally decouples the scheduler table from 
-**      application specific processing such as command callback 
-**      functions and file processing.
-**   3. Commands that affect either the message table or scheduler
-**      send an information event since these are critical operations
+**  This program is free software; you can modify and/or redistribute it
+**  under the terms of the GNU Affero General Public License
+**  as published by the Free Software Foundation; version 3 with
+**  attribution addendums as found in the LICENSE.txt
 **
-** References:
-**   1. OpenSatKit Object-based Application Developer's Guide.
-**   2. cFS Application Developer's Guide.
+**  This program is distributed in the hope that it will be useful,
+**  but WITHOUT ANY WARRANTY; without even the implied warranty of
+**  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**  GNU Affero General Public License for more details.
 **
-**   Written by David McComas, licensed under the Apache License, Version 2.0
-**   (the "License"); you may not use this file except in compliance with the
-**   License. You may obtain a copy of the License at
+**  Purpose:
+**    Implement the scheduler
 **
-**      http://www.apache.org/licenses/LICENSE-2.0
+**  Notes:
+**    1. Orginally based on NASA Goddard's 2015 SCH_LAB app
+**    2. This design intentionally decouples the scheduler table from 
+**       application specific processing such as command callback 
+**       functions and file processing.
+**    3. Commands that affect either the message table or scheduler
+**       send an information event since these are critical operations
 **
-**   Unless required by applicable law or agreed to in writing, software
-**   distributed under the License is distributed on an "AS IS" BASIS,
-**   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-**   See the License for the specific language governing permissions and
-**   limitations under the License.
+**  References:
+**    1. OpenSatKit Object-based Application Developer's Guide
+**    2. cFS Application Developer's Guide
+**
 */
 
 /*
@@ -34,10 +37,6 @@
 #include "cfe_time_msg.h"
 
 #include "scheduler.h"
-
-#if (OS_SUCCESS != CFE_SUCCESS)
-   #error Code assumes OS_SUCCESS equals CFE_SUCCESS
-#endif
 
 /******************************/
 /** File Function Prototypes **/
@@ -154,39 +153,14 @@ void SCHEDULER_Constructor(SCHEDULER_Class_t* ObjPtr, const INITBL_Class_t* IniT
 
    } /* End if minor frame timer created */
 
-   CFE_MSG_Init(CFE_MSG_PTR(Scheduler->TblEntryPkt.TlmHeader)), KIT_SCH_TBL_ENTRY_TLM_MID, SCHEDULER_TBL_ENTRY_TLM_LEN);
-   CFE_MSG_Init(CFE_MSG_PTR(Scheduler->DiagPkt.TlmHeader)),     KIT_SCH_DIAG_TLM_MID,      SCHEDULER_DIAG_TLM_LEN);
+ 
+   CFE_MSG_Init(CFE_MSG_PTR(Scheduler->TblEntryPkt.TlmHeader), CFE_SB_ValueToMsgId(INITBL_GetIntConfig(IniTbl, CFG_TBL_ENTRY_TLM_MID)), SCHEDULER_TBL_ENTRY_TLM_LEN);
+   CFE_MSG_Init(CFE_MSG_PTR(Scheduler->DiagPkt.TlmHeader),     CFE_SB_ValueToMsgId(INITBL_GetIntConfig(IniTbl, CFG_DIAG_TLM_MID)),      SCHEDULER_DIAG_TLM_LEN);
 
    MSGTBL_Constructor(&Scheduler->MsgTbl, INITBL_GetStrConfig(IniTbl, CFG_APP_CFE_NAME));
    SCHTBL_Constructor(&Scheduler->SchTbl, INITBL_GetStrConfig(IniTbl, CFG_APP_CFE_NAME));
  
 } /* End SCHEDULER_Constructor() */
-
-
-/******************************************************************************
-** Function: SCHEDULER_ResetStatus
-**
-*/
-void SCHEDULER_ResetStatus()
-{
-
-   Scheduler->SlotsProcessedCount          = 0;
-   Scheduler->SkippedSlotsCount            = 0;
-   Scheduler->MultipleSlotsCount           = 0;
-   Scheduler->SameSlotCount                = 0;
-   Scheduler->ScheduleActivitySuccessCount = 0;
-   Scheduler->ScheduleActivityFailureCount = 0;
-   Scheduler->ValidMajorFrameCount         = 0;
-   Scheduler->MissedMajorFrameCount        = 0;
-   Scheduler->UnexpectedMajorFrameCount    = 0;
-   Scheduler->TablePassCount               = 0;
-   Scheduler->ConsecutiveNoisyFrameCounter = 0;
-   Scheduler->IgnoreMajorFrame             = false;
-   
-   MSGTBL_ResetStatus();
-   SCHTBL_ResetStatus();
-   
-} /* End SCHEDULER_ResetStatus() */
 
 
 /******************************************************************************
@@ -233,7 +207,7 @@ bool SCHEDULER_ConfigSchEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgP
          if (RetStatus == true)
          {
             
-            Scheduler->SchTbl.Entry[Index].Enabled = ConfigSchEntryCmd->Enabled;
+            Scheduler->SchTbl.Data.Entry[Index].Enabled = ConfigSchEntryCmd->Enabled;
             CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, 
                               "Configured scheduler table slot %d activity %d to %s",
                               ConfigSchEntryCmd->Slot, ConfigSchEntryCmd->Activity,
@@ -256,359 +230,14 @@ bool SCHEDULER_ConfigSchEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgP
 
 
 /******************************************************************************
-** Function: SCHEDULER_LoadSchEntryCmd
-**
-** Notes:
-**   1. Utiity functions send events for errors.
-*/
-bool SCHEDULER_LoadSchEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
-{
-
-   const   SCHEDULER_LoadSchEntryCmdMsg_t *LoadSchEntryCmd = (const SCHEDULER_LoadSchEntryCmdMsg_t *) MsgPtr;
-   uint16  Index;
-   bool    RetStatus = false;
-   
-   
-   if (SCHTBL_GetEntryIndex("Scheduler table load entry cmd rejected",
-       LoadSchEntryCmd->Slot, LoadSchEntryCmd->Activity, &Index))
-   {
-
-      if (SCHTBL_ValidEntry("Reject scheduler table load entry command",
-                            LoadSchEntryCmd->Enabled, LoadSchEntryCmd->Period,
-                            LoadSchEntryCmd->Offset,LoadSchEntryCmd->MsgTblIndex))
-      {
- 
-         SCHTBL_Entry_t *Entry = &(Scheduler->SchTbl.Data.Entry[Index]);
-         Entry->Enabled        = (bool)LoadSchEntryCmd->Enabled;
-         Entry->Period         = LoadSchEntryCmd->Period;
-         Entry->Offset         = LoadSchEntryCmd->Offset;
-         Entry->MsgTblIndex    = LoadSchEntryCmd->MsgTblIndex;
-         RetStatus = true;
-         
-         CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, 
-                           "Loaded scheduler table slot %d activity %d (Enabled,Period,Offset,MsgTblIdx)=>(%s,%d,%d,%d)",
-                           LoadSchEntryCmd->Slot, LoadSchEntryCmd->Activity,
-                           CMDMGR_BoolStr(Entry->Enabled),Entry->Period,
-                           Entry->Offset,Entry->MsgTblIndex);
- 
-      } /* End if valid entry fields */
-   } /* End if valid indices */
-
-   return RetStatus;
-
-} /* End SCHEDULER_LoadSchEntryCmd() */
-
-
-/******************************************************************************
-** Function: SCHEDULER_SendSchEntryCmd
-**
-** Sends an informational event message containing the scheduler table entry 
-** for the command-specified (slot,activity). It also sends a telemetry packet
-** containing the same scheduler table entry and the contents of the message 
-** table entry indexed by the scheduler table entry.
-**
-** Notes:
-**   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
-**
-*/
-bool SCHEDULER_SendSchEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
-{
-
-   const   SCHEDULER_SendSchEntryCmdMsg_t *SendSchEntryCmd = (const SCHEDULER_SendSchEntryCmdMsg_t *) MsgfPtr;   
-   uint16  Index;
-   bool    RetStatus = false;
-   
-   
-   if (SCHTBL_GetEntryIndex("Scheduler table send entry cmd rejected",
-       SendSchEntryCmd->Slot, SendSchEntryCmd->Activity,&Index))
-   {
-
-      SCHTBL_Entry_t *Entry = &(Scheduler->SchTbl.Data.Entry[Index]);
-      
-      CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, 
-                        "Scheduler table slot %d activity %d (Enabled,Period,Offset,MsgTblIdx)=>(%s,%d,%d,%d)",
-                        SendSchEntryCmd->Slot, SendSchEntryCmd->Activity,
-                        CMDMGR_BoolStr(Entry->Enabled),Entry->Period,
-                        Entry->Offset,Entry->MsgTblIndex);
-
-      RetStatus = SendTblEntryTlm(Index, Entry->MsgTblIndex, true);
-
-   } /* End if valid indices */
-
-
-   return RetStatus;
-   
-} /* End SCHEDULER_SendSchEntryCmd() */
-
-
-/******************************************************************************
-** Function: SCHEDULER_LoadMsgEntryCmd
-**
-** Notes:
-**   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
-**
-*/
-bool SCHEDULER_LoadMsgEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
-{
-
-   const   SCHEDULER_LoadMsgEntryCmdMsg_t *LoadMsgEntryCmd = (const SCHEDULER_LoadMsgEntryCmdMsg_t *) MsgPtr;   
-   boolean RetStatus = false;
-   uint16  Index;
-
-   Index = LoadMsgEntryCmd->Index;
-   if (Index < MSGTBL_MAX_ENTRIES)
-   {
-
-      CFE_MSG_Init(CFE_MSG_PTR(Scheduler->MsgTbl.Entry[Index]), (CFE_SB_MsgId_t)LoadMsgEntryCmd->MsgId, sizeof(CFE_MSG_CommandHeader_t));
-
-      CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, "Loaded msg[%d]: 0x%X, 0x%X, 0x%X, 0x%X",
-                        Index, 
-                        Scheduler->MsgTbl.Data.Entry[Index].Buffer[0],
-                        Scheduler->MsgTbl.Data.Entry[Index].Buffer[1],
-                        Scheduler->MsgTbl.Data.Entry[Index].Buffer[2],
-                        Scheduler->MsgTbl.Data.Entry[Index].Buffer[3]);
-      
-      RetStatus = true;
-      
-   } /* End if valid message ID */
-   else
-   {
-      
-      CFE_EVS_SendEvent (SCHEDULER_LOAD_MSG_CMD_INDEX_ERR_EID, CFE_EVS_EventType_ERROR, 
-                         "Load message entry cmd error. Invalid index %d greater than max %d",
-                         Index, (MSGTBL_MAX_ENTRIES-1));
-
-   } /* End if invalid index */
-
-   return RetStatus;
-   
-} /* End SCHEDULER_LoadMsgEntryCmd() */
-
-
-/******************************************************************************
-** Function: SCHEDULER_SendMsgEntryCmd
-**
-** Sends an informational event message containing the message table entry 
-** for the command-specified index. It also sends a telemetry packet
-** containing the same message table entry and the first scheduler table entry
-** found that references the message table entry.
-**
-** Notes:
-**   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
-**
-*/
-bool SCHEDULER_SendMsgEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
-{
-
-   const   SCHEDULER_SendMsgEntryCmdMsg_t *SendMsgEntryCmd = (const SCHEDULER_SendMsgEntryCmdMsg_t *) MsgPtr;   
-   bool    RetStatus = false;
-   uint16  MsgIndex;
-   uint16 *DataBuf=NULL;
-   uint16  SchIndex;
-   bool    SchEntryFound;
-   
-   MsgIndex = SendMsgEntryCmd->Index;
-   MsgPtr = (CFE_MSG_Message_t *) Scheduler->MsgTbl.Entry[MsgIndex].Buffer;
-   if (MsgIndex < MSGTBL_MAX_ENTRIES)
-   {
-      CFE_MSG_Size_t          Size;
-      CFE_MSG_Type_t          Type;
-      CFE_MSG_ApId_t          ApId;
-      CFE_MSG_SequenceCount_t SeqCnt;
-      CFE_MSG_GetSize(MsgPtr, &Size);
-      CFE_MSG_GetType(MsgPtr, &Type);
-      CFE_MSG_GetApId(MsgPtr, &ApId);
-      CFE_MSG_GetSequenceCount(MsgPtr, &SeqCnt);
-
-      if (Type == CFE_MSG_Type_Cmd)
-      {
-      
-         bool              ValidChecksum;
-         CFE_MSG_FcnCode_t FuncCode;
-          
-         CFE_MSG_GetFcnCode(MsgPtr, &FuncCode);
-         CFE_MSG_ValidateChecksum(MsgPtr, &ValidChecksum);
-         
-         CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, 
-                           "Msg[%d]=Command(ApId,SeqCnt,Len,FuncCode,ValidChecksum)=>(0x%04X,%d,%d,%d,0x%02X)",
-                           MsgIndex,ApId,SeqCnt,Size,FuncCode,ValidChecksum);
-            
-         DataBuf = &(Scheduler->MsgTbl.Entry[MsgIndex].Buffer[sizeof(CFE_MSG_CommandHeader_t)/2]);
-
-      } /* End if cmd */
-      else if (Type == CFE_MSG_Type_Tlm)
-      {
-         
-         CFE_TIME_SysTime_t Time;
-         
-         CFE_MSG_GetMsgTime(MsgPtr, &Time);
-         
-         CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, 
-                           "Msg[%d]=Telemetry(ApId,SeqCnt,Len,Seconds,Subsecs)=>(0x%04X,%d,%d,%d,%d)",
-                           MsgIndex,ApId,SeqCnt,Size,Time.Seconds,Time.Subseconds);
-           
-         DataBuf = &(Scheduler->MsgTbl.Entry[MsgIndex].Buffer[sizeof(CFE_MSG_TelemetryHeader_t)/2]);
-      
-      }  /* End if tlm */
-      else
-      {
-      
-         CFE_EVS_SendEvent (SCHEDULER_SEND_MSG_EVENT_MSG_TYPE_ERR_EID, CFE_EVS_EventType_ERROR, 
-                            "Rejected send message table entry command: Invalid message type %d",
-                            Type);
-         
-      } /* Invalid type */
-
-      if (DataBuf != NULL)
-      {
-         
-         CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, 
-                           "Data[0..3]: 0x%04X, 0x%04X, 0x%04X, 0x%04X",
-                           DataBuf[0],DataBuf[1],DataBuf[2],DataBuf[3]);
-         
-         SchEntryFound = false;
-         SchIndex = 0;
-         do
-         {
-            
-            if (Scheduler->SchTbl.Entry[SchIndex].MsgTblIndex == MsgIndex)
-            {
-               SchEntryFound = true;
-            }
-            else
-            {
-               ++SchIndex;
-            }
-            
-         } while (!SchEntryFound && SchIndex < SCHTBL_MAX_ENTRIES);
-         
-         RetStatus = SendTblEntryTlm(SchIndex, MsgIndex, SchEntryFound);    
-      
-      } /* End if DataBuf != NULL */
-   
-   } /* End if valid activity ID */
-   else
-   {
-      
-      CFE_EVS_SendEvent (SCHEDULER_SEND_MSG_EVENT_CMD_INDEX_ERR_EID, CFE_EVS_EventType_ERROR, 
-                         "Rejected send message table entry command: Invalid index %d greater than max %d",
-                         MsgIndex, (MSGTBL_MAX_ENTRIES-1));
-
-   } /* End if invalid index */
-
-   return RetStatus;
-   
-} /* End SCHEDULER_SendMsgEntryCmd() */
-
-
-/******************************************************************************
-** Function: SCHEDULER_SendDiagTlmCmd
-**
-** Send the diagnostic telemetry packet.
-**
-** Notes:
-**   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
-**
-*/
-bool SCHEDULER_SendDiagTlmCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
-{
-
-   const SCHEDULER_SendDiagTlmCmdMsg_t *SendDiagTlmCmd = (const SCHEDULER_SendDiagTlmCmdMsg_t *) MsgPtr;   
-   bool  RetStatus = false;
-
-   if (SendDiagTlmCmd->Slot < SCHTBL_SLOTS)
-   {
-      
-      uint16 Activity;
-      int32  CfeStatus;
-      SCHEDULER_DiagPkt_t* DiagPkt = &(Scheduler->DiagPkt);
-   
-      DiagPkt->LastProcessCount = Scheduler->LastProcessCount;
-      DiagPkt->TimerId          = Scheduler->TimerId;
-      DiagPkt->TimeSemaphore    = Scheduler->TimeSemaphore;
-      DiagPkt->ClockAccuracy    = Scheduler->ClockAccuracy;
-      DiagPkt->WorstCaseSlotsPerMinorFrame  = Scheduler->WorstCaseSlotsPerMinorFrame;
-      DiagPkt->IgnoreMajorFrame = Scheduler->IgnoreMajorFrame;
-      DiagPkt->SyncToMET        = Scheduler->SyncToMET;
-      DiagPkt->MajorFrameSource = Scheduler->MajorFrameSource;
-      DiagPkt->Spare            = 0;
-
-      for (Activity=0; Activity < SCHTBL_ACTIVITIES_PER_SLOT; Activity++)
-      {
-
-         DiagPkt->SchTblSlot[Activity] = Scheduler->SchTbl.Data.Entry[SCHTBL_INDEX(SendDiagTlmCmd->Slot,Activity)];
-   
-      }
-   
-      CFE_SB_TimeStampMsg(CFE_MSG_PTR(DiagPkt->TlmHeader));
-      CfeStatus = CFE_SB_TransmitMsg(CFE_MSG_PTR(DiagPkt->TlmHeader), true);
-       
-      RetStatus = (CfeStatus == CFE_SUCCESS);
-   
-   } /* End if valid slot index */
-   else
-   {
-      
-      CFE_EVS_SendEvent (SCHEDULER_SEND_DIAG_TLM_ERR_EID, CFE_EVS_EventType_ERROR, 
-                         "Send diagnostic tlm cmd rejected. Invalid slot index %d greater than max %d",
-                         SendDiagTlmCmd->Slot, (SCHTBL_SLOTS-1));
-
-   }      
-   
-   return RetStatus;
-   
-} /* End SCHEDULER_SendDiagTlmCmd() */
-
-
-/******************************************************************************
-** Function: SCHEDULER_StartTimers
-**
-*/
-int32 SCHEDULER_StartTimers(void)
-{
-
-   int32 Status = CFE_SUCCESS;
-
-   /*
-   ** Connect to cFE TIME's time reference marker (typically 1 Hz)
-   ** to use it as the Major Frame synchronization source
-   */
-
-   Status = CFE_TIME_RegisterSynchCallback((CFE_TIME_SynchCallbackPtr_t)&MajorFrameCallback);
-
-   if (Status != CFE_SUCCESS)
-   {
-
-      CFE_EVS_SendEvent(SCHEDULER_MAJOR_FRAME_SUB_ERR_EID, CFE_EVS_EventType_ERROR,
-                       "Error Subscribing to Major Frame Tone (RC=0x%08X)",
-                       Status);
-   }
-   else
-   {
-
-      /*
-      ** Start the Minor Frame Timer with an extended delay to allow a Major Frame Sync
-      ** to start processing.  If the Major Frame Sync fails to arrive, then we will
-      ** start when this timer expires and synch ourselves to the MET clock.
-      */
-      Status = OS_TimerSet(Scheduler->TimerId, SCHEDULER_STARTUP_PERIOD, 0);
-
-   }
-
-   return (Status);
-
-} /* End SCHEDULER_StartTimers() */
-
-
-/******************************************************************************
 ** Function: SCHEDULER_Execute
 **
 */
-boolean SCHEDULER_Execute(void)
+bool SCHEDULER_Execute(void)
 {
    uint32  CurrentSlot;
    uint32  ProcessCount;
-   int32   Result = CFE_SUCCESS;
+   int32   Result;
 
    /* Wait for the next slot (Major or Minor Frame) */
    Result = OS_BinSemTake(Scheduler->TimeSemaphore);
@@ -633,7 +262,7 @@ boolean SCHEDULER_Execute(void)
       else
       {
          
-         Scheduler->SendNoisyMajorFrameMsg = TRUE;
+         Scheduler->SendNoisyMajorFrameMsg = true;
       }
 
       CurrentSlot = GetCurrentSlotNumber();
@@ -787,7 +416,473 @@ boolean SCHEDULER_Execute(void)
 
    return(Result == CFE_SUCCESS);
 
-} /* End of SCHEDULER_ProcessTable() */
+} /* End of SCHEDULER_Execute() */
+
+
+/******************************************************************************
+** Function: SCHEDULER_LoadMsgEntryCmd
+**
+** Notes:
+**   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
+**
+*/
+bool SCHEDULER_LoadMsgEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
+{
+
+   const   SCHEDULER_LoadMsgEntryCmdMsg_t *LoadMsgEntryCmd = (const SCHEDULER_LoadMsgEntryCmdMsg_t *) MsgPtr;   
+   bool    RetStatus = false;
+   uint16  Index;
+
+   Index = LoadMsgEntryCmd->Index;
+   if (Index < MSGTBL_MAX_ENTRIES)
+   {
+
+      CFE_MSG_Init(CFE_MSG_PTR(Scheduler->MsgTbl.Data.Entry[Index]), CFE_SB_ValueToMsgId(LoadMsgEntryCmd->MsgId), sizeof(CFE_MSG_CommandHeader_t));
+
+      CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, "Loaded msg[%d]: 0x%X, 0x%X, 0x%X, 0x%X",
+                        Index, 
+                        Scheduler->MsgTbl.Data.Entry[Index].Buffer[0],
+                        Scheduler->MsgTbl.Data.Entry[Index].Buffer[1],
+                        Scheduler->MsgTbl.Data.Entry[Index].Buffer[2],
+                        Scheduler->MsgTbl.Data.Entry[Index].Buffer[3]);
+      
+      RetStatus = true;
+      
+   } /* End if valid message ID */
+   else
+   {
+      
+      CFE_EVS_SendEvent (SCHEDULER_LOAD_MSG_CMD_INDEX_ERR_EID, CFE_EVS_EventType_ERROR, 
+                         "Load message entry cmd error. Invalid index %d greater than max %d",
+                         Index, (MSGTBL_MAX_ENTRIES-1));
+
+   } /* End if invalid index */
+
+   return RetStatus;
+   
+} /* End SCHEDULER_LoadMsgEntryCmd() */
+
+
+/******************************************************************************
+** Function: SCHEDULER_LoadSchEntryCmd
+**
+** Notes:
+**   1. Utiity functions send events for errors.
+*/
+bool SCHEDULER_LoadSchEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
+{
+
+   const   SCHEDULER_LoadSchEntryCmdMsg_t *LoadSchEntryCmd = (const SCHEDULER_LoadSchEntryCmdMsg_t *) MsgPtr;
+   uint16  Index;
+   bool    RetStatus = false;
+   
+   
+   if (SCHTBL_GetEntryIndex("Scheduler table load entry cmd rejected",
+       LoadSchEntryCmd->Slot, LoadSchEntryCmd->Activity, &Index))
+   {
+
+      if (SCHTBL_ValidEntry("Reject scheduler table load entry command",
+                            LoadSchEntryCmd->Enabled, LoadSchEntryCmd->Period,
+                            LoadSchEntryCmd->Offset,LoadSchEntryCmd->MsgTblIndex))
+      {
+ 
+         SCHTBL_Entry_t *Entry = &(Scheduler->SchTbl.Data.Entry[Index]);
+         Entry->Enabled        = (bool)LoadSchEntryCmd->Enabled;
+         Entry->Period         = LoadSchEntryCmd->Period;
+         Entry->Offset         = LoadSchEntryCmd->Offset;
+         Entry->MsgTblIndex    = LoadSchEntryCmd->MsgTblIndex;
+         RetStatus = true;
+         
+         CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, 
+                           "Loaded scheduler table slot %d activity %d (Enabled,Period,Offset,MsgTblIdx)=>(%s,%d,%d,%d)",
+                           LoadSchEntryCmd->Slot, LoadSchEntryCmd->Activity,
+                           CMDMGR_BoolStr(Entry->Enabled),Entry->Period,
+                           Entry->Offset,Entry->MsgTblIndex);
+ 
+      } /* End if valid entry fields */
+   } /* End if valid indices */
+
+   return RetStatus;
+
+} /* End SCHEDULER_LoadSchEntryCmd() */
+
+
+/******************************************************************************
+** Function: SCHEDULER_ResetStatus
+**
+*/
+void SCHEDULER_ResetStatus()
+{
+
+   Scheduler->SlotsProcessedCount          = 0;
+   Scheduler->SkippedSlotsCount            = 0;
+   Scheduler->MultipleSlotsCount           = 0;
+   Scheduler->SameSlotCount                = 0;
+   Scheduler->ScheduleActivitySuccessCount = 0;
+   Scheduler->ScheduleActivityFailureCount = 0;
+   Scheduler->ValidMajorFrameCount         = 0;
+   Scheduler->MissedMajorFrameCount        = 0;
+   Scheduler->UnexpectedMajorFrameCount    = 0;
+   Scheduler->TablePassCount               = 0;
+   Scheduler->ConsecutiveNoisyFrameCounter = 0;
+   Scheduler->IgnoreMajorFrame             = false;
+   
+   MSGTBL_ResetStatus();
+   SCHTBL_ResetStatus();
+   
+} /* End SCHEDULER_ResetStatus() */
+
+
+/******************************************************************************
+** Function: SCHEDULER_SendDiagTlmCmd
+**
+** Send the diagnostic telemetry packet.
+**
+** Notes:
+**   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
+**
+*/
+bool SCHEDULER_SendDiagTlmCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
+{
+
+   const SCHEDULER_SendDiagTlmCmdMsg_t *SendDiagTlmCmd = (const SCHEDULER_SendDiagTlmCmdMsg_t *) MsgPtr;   
+   bool  RetStatus = false;
+
+   if (SendDiagTlmCmd->Slot < SCHTBL_SLOTS)
+   {
+      
+      uint16 Activity;
+      int32  CfeStatus;
+      SCHEDULER_DiagPkt_t* DiagPkt = &(Scheduler->DiagPkt);
+   
+      DiagPkt->LastProcessCount = Scheduler->LastProcessCount;
+      DiagPkt->TimerId          = Scheduler->TimerId;
+      DiagPkt->TimeSemaphore    = Scheduler->TimeSemaphore;
+      DiagPkt->ClockAccuracy    = Scheduler->ClockAccuracy;
+      DiagPkt->WorstCaseSlotsPerMinorFrame  = Scheduler->WorstCaseSlotsPerMinorFrame;
+      DiagPkt->IgnoreMajorFrame = Scheduler->IgnoreMajorFrame;
+      DiagPkt->SyncToMET        = Scheduler->SyncToMET;
+      DiagPkt->MajorFrameSource = Scheduler->MajorFrameSource;
+      DiagPkt->Spare            = 0;
+
+      for (Activity=0; Activity < SCHTBL_ACTIVITIES_PER_SLOT; Activity++)
+      {
+
+         DiagPkt->SchTblSlot[Activity] = Scheduler->SchTbl.Data.Entry[SCHTBL_INDEX(SendDiagTlmCmd->Slot,Activity)];
+   
+      }
+   
+      CFE_SB_TimeStampMsg(CFE_MSG_PTR(DiagPkt->TlmHeader));
+      CfeStatus = CFE_SB_TransmitMsg(CFE_MSG_PTR(DiagPkt->TlmHeader), true);
+       
+      RetStatus = (CfeStatus == CFE_SUCCESS);
+   
+   } /* End if valid slot index */
+   else
+   {
+      
+      CFE_EVS_SendEvent (SCHEDULER_SEND_DIAG_TLM_ERR_EID, CFE_EVS_EventType_ERROR, 
+                         "Send diagnostic tlm cmd rejected. Invalid slot index %d greater than max %d",
+                         SendDiagTlmCmd->Slot, (SCHTBL_SLOTS-1));
+
+   }      
+   
+   return RetStatus;
+   
+} /* End SCHEDULER_SendDiagTlmCmd() */
+
+
+/******************************************************************************
+** Function: SCHEDULER_SendMsgEntryCmd
+**
+** Sends an informational event message containing the message table entry 
+** for the command-specified index. It also sends a telemetry packet
+** containing the same message table entry and the first scheduler table entry
+** found that references the message table entry.
+**
+** Notes:
+**   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
+**
+*/
+bool SCHEDULER_SendMsgEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
+{
+
+   const   SCHEDULER_SendMsgEntryCmdMsg_t *SendMsgEntryCmd = (const SCHEDULER_SendMsgEntryCmdMsg_t *) MsgPtr;   
+   bool    RetStatus = false;
+   uint16  MsgIndex;
+   uint16 *DataBuf=NULL;
+   uint16  SchIndex;
+   bool    SchEntryFound;
+   
+   MsgIndex = SendMsgEntryCmd->Index;
+   MsgPtr = (CFE_MSG_Message_t *) Scheduler->MsgTbl.Data.Entry[MsgIndex].Buffer;
+   if (MsgIndex < MSGTBL_MAX_ENTRIES)
+   {
+      CFE_MSG_Size_t          Size;
+      CFE_MSG_Type_t          Type;
+      CFE_MSG_ApId_t          ApId;
+      CFE_MSG_SequenceCount_t SeqCnt;
+      CFE_MSG_GetSize(MsgPtr, &Size);
+      CFE_MSG_GetType(MsgPtr, &Type);
+      CFE_MSG_GetApId(MsgPtr, &ApId);
+      CFE_MSG_GetSequenceCount(MsgPtr, &SeqCnt);
+
+      if (Type == CFE_MSG_Type_Cmd)
+      {
+      
+         bool              ValidChecksum;
+         CFE_MSG_FcnCode_t FuncCode;
+          
+         CFE_MSG_GetFcnCode(MsgPtr, &FuncCode);
+         CFE_MSG_ValidateChecksum(MsgPtr, &ValidChecksum);
+         
+         CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, 
+                           "Msg[%d]=Command(ApId,SeqCnt,Len,FuncCode,ValidChecksum)=>(0x%04X,%d,%ld,%d,0x%02X)",
+                           MsgIndex,ApId,SeqCnt,Size,FuncCode,ValidChecksum);
+            
+         DataBuf = &(Scheduler->MsgTbl.Data.Entry[MsgIndex].Buffer[sizeof(CFE_MSG_CommandHeader_t)/2]);
+
+      } /* End if cmd */
+      else if (Type == CFE_MSG_Type_Tlm)
+      {
+         
+         CFE_TIME_SysTime_t Time;
+         
+         CFE_MSG_GetMsgTime(MsgPtr, &Time);
+         
+         CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, 
+                           "Msg[%d]=Telemetry(ApId,SeqCnt,Len,Seconds,Subsecs)=>(0x%04X,%d,%ld,%d,%d)",
+                           MsgIndex,ApId,SeqCnt,Size,Time.Seconds,Time.Subseconds);
+           
+         DataBuf = &(Scheduler->MsgTbl.Data.Entry[MsgIndex].Buffer[sizeof(CFE_MSG_TelemetryHeader_t)/2]);
+      
+      }  /* End if tlm */
+      else
+      {
+      
+         CFE_EVS_SendEvent (SCHEDULER_SEND_MSG_TYPE_ERR_EID, CFE_EVS_EventType_ERROR, 
+                            "Rejected send message table entry command: Invalid message type %d",
+                            Type);
+         
+      } /* Invalid type */
+
+      if (DataBuf != NULL)
+      {
+         
+         CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, 
+                           "Data[0..3]: 0x%04X, 0x%04X, 0x%04X, 0x%04X",
+                           DataBuf[0],DataBuf[1],DataBuf[2],DataBuf[3]);
+         
+         SchEntryFound = false;
+         SchIndex = 0;
+         do
+         {
+            
+            if (Scheduler->SchTbl.Data.Entry[SchIndex].MsgTblIndex == MsgIndex)
+            {
+               SchEntryFound = true;
+            }
+            else
+            {
+               ++SchIndex;
+            }
+            
+         } while (!SchEntryFound && SchIndex < SCHTBL_MAX_ENTRIES);
+         
+         RetStatus = SendTblEntryTlm(SchIndex, MsgIndex, SchEntryFound);    
+      
+      } /* End if DataBuf != NULL */
+   
+   } /* End if valid activity ID */
+   else
+   {
+      
+      CFE_EVS_SendEvent (SCHEDULER_SEND_MSG_EVENT_CMD_INDEX_ERR_EID, CFE_EVS_EventType_ERROR, 
+                         "Rejected send message table entry command: Invalid index %d greater than max %d",
+                         MsgIndex, (MSGTBL_MAX_ENTRIES-1));
+
+   } /* End if invalid index */
+
+   return RetStatus;
+   
+} /* End SCHEDULER_SendMsgEntryCmd() */
+
+
+/******************************************************************************
+** Function: SCHEDULER_SendSchEntryCmd
+**
+** Sends an informational event message containing the scheduler table entry 
+** for the command-specified (slot,activity). It also sends a telemetry packet
+** containing the same scheduler table entry and the contents of the message 
+** table entry indexed by the scheduler table entry.
+**
+** Notes:
+**   1. Function signature must match the CMDMGR_CmdFuncPtr_t definition
+**
+*/
+bool SCHEDULER_SendSchEntryCmd(void* ObjDataPtr, const CFE_MSG_Message_t *MsgPtr)
+{
+
+   const   SCHEDULER_SendSchEntryCmdMsg_t *SendSchEntryCmd = (const SCHEDULER_SendSchEntryCmdMsg_t *) MsgPtr;   
+   uint16  Index;
+   bool    RetStatus = false;
+   
+   
+   if (SCHTBL_GetEntryIndex("Scheduler table send entry cmd rejected",
+       SendSchEntryCmd->Slot, SendSchEntryCmd->Activity,&Index))
+   {
+
+      SCHTBL_Entry_t *Entry = &(Scheduler->SchTbl.Data.Entry[Index]);
+      
+      CFE_EVS_SendEvent(SCHEDULER_CMD_SUCCESS_EID, CFE_EVS_EventType_INFORMATION, 
+                        "Scheduler table slot %d activity %d (Enabled,Period,Offset,MsgTblIdx)=>(%s,%d,%d,%d)",
+                        SendSchEntryCmd->Slot, SendSchEntryCmd->Activity,
+                        CMDMGR_BoolStr(Entry->Enabled),Entry->Period,
+                        Entry->Offset,Entry->MsgTblIndex);
+
+      RetStatus = SendTblEntryTlm(Index, Entry->MsgTblIndex, true);
+
+   } /* End if valid indices */
+
+
+   return RetStatus;
+   
+} /* End SCHEDULER_SendSchEntryCmd() */
+
+
+/******************************************************************************
+** Function: SCHEDULER_StartTimers
+**
+*/
+int32 SCHEDULER_StartTimers(void)
+{
+
+   int32 Status = CFE_SUCCESS;
+
+   /*
+   ** Connect to cFE TIME's time reference marker (typically 1 Hz)
+   ** to use it as the Major Frame synchronization source
+   */
+
+   Status = CFE_TIME_RegisterSynchCallback((CFE_TIME_SynchCallbackPtr_t)&MajorFrameCallback);
+
+   if (Status != CFE_SUCCESS)
+   {
+
+      CFE_EVS_SendEvent(SCHEDULER_MAJOR_FRAME_SUB_ERR_EID, CFE_EVS_EventType_ERROR,
+                       "Error Subscribing to Major Frame Tone (RC=0x%08X)",
+                       Status);
+   }
+   else
+   {
+
+      /*
+      ** Start the Minor Frame Timer with an extended delay to allow a Major Frame Sync
+      ** to start processing.  If the Major Frame Sync fails to arrive, then we will
+      ** start when this timer expires and synch ourselves to the MET clock.
+      */
+      Status = OS_TimerSet(Scheduler->TimerId, SCHEDULER_STARTUP_PERIOD, 0);
+
+   }
+
+   return (Status);
+
+} /* End SCHEDULER_StartTimers() */
+
+
+/******************************************************************************
+** Function: GetCurrentSlotNumber
+**
+*/
+static uint32 GetCurrentSlotNumber(void)
+{
+    
+   uint32  CurrentSlot;
+
+   if (Scheduler->SyncToMET != SCHEDULER_SYNCH_FALSE)
+   {
+      
+      CurrentSlot = GetMETSlotNumber();
+
+      /*
+      ** If we are only concerned with synchronizing the minor frames to an MET,
+      ** then we need to adjust the current slot by whatever MET time is prevalent
+      ** when the Major Frame Signal is received.
+      ** If we are synchronizing the Major Frame, then, by definition, LastSyncMETSlot
+      ** would be a zero and the current slot would be appropriate.
+      */
+      if (CurrentSlot < Scheduler->LastSyncMETSlot)
+      {
+         
+         CurrentSlot = CurrentSlot + SCHTBL_SLOTS - Scheduler->LastSyncMETSlot;
+      }
+      else
+      {
+           
+         CurrentSlot = CurrentSlot - Scheduler->LastSyncMETSlot;
+      }
+   }
+   else
+   {
+        
+      CurrentSlot = Scheduler->MinorFramesSinceTone;
+   }
+
+   return CurrentSlot;
+
+} /* End GetCurrentSlotNumber() */
+
+
+/******************************************************************************
+** Function: GetMETSlotNumber
+**
+*/
+static uint32 GetMETSlotNumber(void)
+{
+    
+   uint32 SubSeconds = 0;
+   uint32 MicroSeconds;
+   uint32 Remainder;
+   uint32 METSlot;
+
+   /*
+   ** Use MET rather than current time to avoid time changes
+   */
+   SubSeconds = CFE_TIME_GetMETsubsecs();
+
+   /*
+   ** Convert sub-seconds to micro-seconds
+   */
+   MicroSeconds = CFE_TIME_Sub2MicroSecs(SubSeconds);
+
+   /*
+   ** Calculate schedule table slot number
+   */
+   METSlot = (MicroSeconds / SCHEDULER_NORMAL_SLOT_PERIOD);
+
+   /*
+   ** Check to see if close enough to round up to next slot
+   */
+   Remainder = MicroSeconds - (METSlot * SCHEDULER_NORMAL_SLOT_PERIOD);
+
+   /*
+   ** Add one more microsecond and see if it is sufficient to add another slot
+   */
+   Remainder += 1;
+   METSlot += (Remainder / SCHEDULER_NORMAL_SLOT_PERIOD);
+
+   /*
+   ** Check to see if the Current Slot number needs to roll over
+   */
+   if (METSlot == SCHTBL_SLOTS)
+   {
+        
+      METSlot = 0;
+   }
+
+   return METSlot;
+
+} /* end GetMETSlotNumber() */
 
 
 /******************************************************************************
@@ -1053,101 +1148,6 @@ static void MinorFrameCallback(uint32 TimerId)
 
 
 /******************************************************************************
-** Function: GetCurrentSlotNumber
-**
-*/
-static uint32 GetCurrentSlotNumber(void)
-{
-    
-   uint32  CurrentSlot;
-
-   if (Scheduler->SyncToMET != SCHEDULER_SYNCH_FALSE)
-   {
-      
-      CurrentSlot = GetMETSlotNumber();
-
-      /*
-      ** If we are only concerned with synchronizing the minor frames to an MET,
-      ** then we need to adjust the current slot by whatever MET time is prevalent
-      ** when the Major Frame Signal is received.
-      ** If we are synchronizing the Major Frame, then, by definition, LastSyncMETSlot
-      ** would be a zero and the current slot would be appropriate.
-      */
-      if (CurrentSlot < Scheduler->LastSyncMETSlot)
-      {
-         
-         CurrentSlot = CurrentSlot + SCHTBL_SLOTS - Scheduler->LastSyncMETSlot;
-      }
-      else
-      {
-           
-         CurrentSlot = CurrentSlot - Scheduler->LastSyncMETSlot;
-      }
-   }
-   else
-   {
-        
-      CurrentSlot = Scheduler->MinorFramesSinceTone;
-   }
-
-   return CurrentSlot;
-
-} /* End GetCurrentSlotNumber() */
-
-
-/******************************************************************************
-** Function: GetMETSlotNumber
-**
-*/
-static uint32 GetMETSlotNumber(void)
-{
-    
-   uint32 SubSeconds = 0;
-   uint32 MicroSeconds;
-   uint32 Remainder;
-   uint32 METSlot;
-
-   /*
-   ** Use MET rather than current time to avoid time changes
-   */
-   SubSeconds = CFE_TIME_GetMETsubsecs();
-
-   /*
-   ** Convert sub-seconds to micro-seconds
-   */
-   MicroSeconds = CFE_TIME_Sub2MicroSecs(SubSeconds);
-
-   /*
-   ** Calculate schedule table slot number
-   */
-   METSlot = (MicroSeconds / SCHEDULER_NORMAL_SLOT_PERIOD);
-
-   /*
-   ** Check to see if close enough to round up to next slot
-   */
-   Remainder = MicroSeconds - (METSlot * SCHEDULER_NORMAL_SLOT_PERIOD);
-
-   /*
-   ** Add one more microsecond and see if it is sufficient to add another slot
-   */
-   Remainder += 1;
-   METSlot += (Remainder / SCHEDULER_NORMAL_SLOT_PERIOD);
-
-   /*
-   ** Check to see if the Current Slot number needs to roll over
-   */
-   if (METSlot == SCHTBL_SLOTS)
-   {
-        
-      METSlot = 0;
-   }
-
-   return METSlot;
-
-} /* end GetMETSlotNumber() */
-
-
-/******************************************************************************
 ** Function: ProcessNextSlot
 **
 */
@@ -1161,6 +1161,7 @@ static int32 ProcessNextSlot(void)
    SCHTBL_Entry_t *NextEntry;
    uint16 *MsgBufPtr;
    int32  MsgSendStatus;
+   MSGTBL_CmdMsg_t *CmdMsg;
 
    SlotIndex = Scheduler->NextSlotNumber * SCHTBL_ACTIVITIES_PER_SLOT;
    NextEntry = &Scheduler->SchTbl.Data.Entry[SlotIndex];
@@ -1185,11 +1186,12 @@ static int32 ProcessNextSlot(void)
             
                MsgBufPtr = Scheduler->MsgTbl.Data.Entry[NextEntry->MsgTblIndex].Buffer;
                
-               CFE_EVS_SendEvent(SCHEDULER_DEBUG_EID, CFE_EVS_EventType_DEBUG,
-                                 "Scheduler MsgTbl Entry: Id = %d, Buffer[0] = 0x%04x",
-                                 NextEntry->MsgTblIndex, MsgBufPtr[0]);
+               CFE_EVS_SendEvent(KIT_SCH_INIT_DEBUG_EID, KIT_SCH_INIT_EVS_TYPE,
+                                 "Scheduler MsgTbl Entry: Id = %d, Buffer[0] = 0x%04x(%d)",
+                                 NextEntry->MsgTblIndex, MsgBufPtr[0], MsgBufPtr[0]);
             
-               MsgSendStatus = CFE_SB_TransmitMsg((CFE_MSG_Message_t *)MsgPtr, true);
+               CmdMsg = &Scheduler->MsgTbl.Cmd.Msg[NextEntry->MsgTblIndex];
+               MsgSendStatus = CFE_SB_TransmitMsg(CFE_MSG_PTR(CmdMsg->Header), true);
 
             } /* End if valid EntryId */
 
@@ -1259,7 +1261,7 @@ static bool SendTblEntryTlm(uint16 SchTblIndex, uint16 MsgTblIndex, bool UseSchT
    int32 CfeStatus;
    uint16 MsgDataIndex;
    CFE_MSG_Type_t     MsgType;
-   CFE_MSG_Message_t* MsgPtr = (CFE_MSG_Message_t *) Scheduler->MsgTbl.Entry[MsgTblIndex].Buffer;
+   CFE_MSG_Message_t* MsgPtr = (CFE_MSG_Message_t *) Scheduler->MsgTbl.Data.Entry[MsgTblIndex].Buffer;
    
    SCHEDULER_TblEntryPkt_t *TlmPkt = &(Scheduler->TblEntryPkt);
    
@@ -1297,7 +1299,7 @@ static bool SendTblEntryTlm(uint16 SchTblIndex, uint16 MsgTblIndex, bool UseSchT
 
       /* In rare case it's a telemetry packet the time field will be zeroed out */
       
-      for (i=0; i < PKTUTIL_PRI_HDR_WORDS; i++)
+      for (i=0; i < PKTUTIL_TLM_HDR_WORDS; i++)
       {
          TlmPkt->MsgTblEntry.Buffer[i] = CFE_MAKE_BIG16(Scheduler->MsgTbl.Data.Entry[MsgTblIndex].Buffer[i]);
       }

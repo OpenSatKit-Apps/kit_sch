@@ -1,24 +1,27 @@
-/* 
-** Purpose: Implement KIT_SCH's Schedule Table management functions.
+/*
+**  Copyright 2022 bitValence, Inc.
+**  All Rights Reserved.
 **
-** Notes:
-**   None
+**  This program is free software; you can modify and/or redistribute it
+**  under the terms of the GNU Affero General Public License
+**  as published by the Free Software Foundation; version 3 with
+**  attribution addendums as found in the LICENSE.txt
 **
-** References:
-**   1. OpenSatKit Object-based Application Developer's Guide.
-**   2. cFS Application Developer's Guide.
+**  This program is distributed in the hope that it will be useful,
+**  but WITHOUT ANY WARRANTY; without even the implied warranty of
+**  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**  GNU Affero General Public License for more details.
 **
-**   Written by David McComas, licensed under the Apache License, Version 2.0
-**   (the "License"); you may not use this file except in compliance with the
-**   License. You may obtain a copy of the License at
+**  Purpose:
+**    Implement KIT_SCH's Schedule Table management functions
 **
-**      http://www.apache.org/licenses/LICENSE-2.0
+**  Notes:
+**    None
 **
-**   Unless required by applicable law or agreed to in writing, software
-**   distributed under the License is distributed on an "AS IS" BASIS,
-**   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-**   See the License for the specific language governing permissions and
-**   limitations under the License.
+**  References:
+**    1. OpenSatKit Object-based Application Developer's Guide
+**    2. cFS Application Developer's Guide
+**
 */
 
 /*
@@ -166,7 +169,6 @@ bool SCHTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename)
    int32     OsStatus;
    uint16    EntryIdx, Slot, Activity;
    char      DumpRecord[256];
-   const     SCHTBL_Tbl *SchTblPtr;
    char      SysTimeStr[64];
    os_err_name_t OsErrStr;
    
@@ -563,8 +565,8 @@ static bool LoadJsonData(size_t JsonFileLen)
                }
                else
                {
-                  RetStatus = FALSE;
-                  CFE_EVS_SendEvent(SCHTBL_LOAD_ERR_EID, CFE_EVS_ERROR,
+                  RetStatus = false;
+                  CFE_EVS_SendEvent(SCHTBL_LOAD_ERR_EID, CFE_EVS_EventType_ERROR,
                                     "Slot[%d] Activity[%d] has missing attributes, only %d of 4 defined",
                                     SlotArrayIdx, ActivityArrayIdx, AttributeCnt);
                }

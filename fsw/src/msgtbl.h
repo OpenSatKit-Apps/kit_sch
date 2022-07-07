@@ -1,28 +1,31 @@
-/* 
-** Purpose: Define KIT_SCH's Message Table that provides the messages to 
-**          be sent by the scheduler.
+/*
+**  Copyright 2022 bitValence, Inc.
+**  All Rights Reserved.
 **
-** Notes:
-**   1. Use the Singleton design pattern. A pointer to the table object
-**      is passed to the constructor and saved for all other operations.
-**      This is a table-specific file so it doesn't need to be re-entrant.
-**   2. The table file is a JSON text file.
+**  This program is free software; you can modify and/or redistribute it
+**  under the terms of the GNU Affero General Public License
+**  as published by the Free Software Foundation; version 3 with
+**  attribution addendums as found in the LICENSE.txt
 **
-** References:
-**   1. OpenSatKit Object-based Application Developer's Guide.
-**   2. cFS Application Developer's Guide.
+**  This program is distributed in the hope that it will be useful,
+**  but WITHOUT ANY WARRANTY; without even the implied warranty of
+**  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**  GNU Affero General Public License for more details.
 **
-**   Written by David McComas, licensed under the Apache License, Version 2.0
-**   (the "License"); you may not use this file except in compliance with the
-**   License. You may obtain a copy of the License at
+**  Purpose:
+**    Define KIT_SCH's Message Table that provides the messages to 
+**    be sent by the scheduler
 **
-**      http://www.apache.org/licenses/LICENSE-2.0
+**  Notes:
+**    1. Use the Singleton design pattern. A pointer to the table object
+**       is passed to the constructor and saved for all other operations.
+**       This is a table-specific file so it doesn't need to be re-entrant.
+**    2. The table file is a JSON text file.
 **
-**   Unless required by applicable law or agreed to in writing, software
-**   distributed under the License is distributed on an "AS IS" BASIS,
-**   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-**   See the License for the specific language governing permissions and
-**   limitations under the License.
+**  References:
+**    1. OpenSatKit Object-based Application Developer's Guide
+**    2. cFS Application Developer's Guide
+**
 */
 #ifndef _msgtbl_
 #define _msgtbl_
@@ -62,9 +65,11 @@
 typedef struct
 {
    
-   uint16   Buffer[MSGTBL_MAX_MSG_WORDS];
-
+   uint16  Buffer[MSGTBL_MAX_MSG_WORDS];
+   uint16  PayloadWordCnt;
+    
 } MSGTBL_Entry_t;
+
 
 typedef struct
 {
@@ -76,12 +81,33 @@ typedef struct
 
 typedef struct
 {
+    CFE_MSG_CommandHeader_t Header;
+    uint16                  Payload[MSGTBL_MAX_MSG_WORDS - sizeof(CFE_MSG_CommandHeader_t)/2];
+
+} MSGTBL_CmdMsg_t;
+
+
+typedef struct
+{
+
+   MSGTBL_CmdMsg_t Msg[MSGTBL_MAX_ENTRIES];
+
+} MSGTBL_Commands_t;
+
+typedef struct
+{
 
    /*
    ** Table parameter data
    */
    
    MSGTBL_Data_t Data;
+
+   /*
+   ** Command messages
+   */
+   
+   MSGTBL_Commands_t Cmd;
 
    /*
    ** Standard CJSON table data
@@ -117,17 +143,17 @@ void MSGTBL_Constructor(MSGTBL_Class_t* ObjPtr, const char* AppName);
 
 
 /******************************************************************************
-** Function: MSGTBL_ResetStatus
+** Function: MSGTBL_DumpCmd
 **
-** Reset counters and status flags to a known reset state.  The behavior of
-** the table manager should not be impacted. The intent is to clear counters
-** and flags to a known default state for telemetry.
+** Command to dump the table.
 **
 ** Notes:
-**   1. See the MSGTBL_Class_t definition for the affected data.
+**  1. Function signature must match TBLMGR_DumpTblFuncPtr_t.
+**  2. Can assume valid table file name because this is a callback from 
+**     the app framework table manager.
 **
 */
-void MSGTBL_ResetStatus(void);
+bool MSGTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename);
 
 
 /******************************************************************************
@@ -145,30 +171,17 @@ bool MSGTBL_LoadCmd(TBLMGR_Tbl_t* Tbl, uint8 LoadType, const char* Filename);
 
 
 /******************************************************************************
-** Function: MSGTBL_DumpCmd
+** Function: MSGTBL_ResetStatus
 **
-** Command to dump the table.
-**
-** Notes:
-**  1. Function signature must match TBLMGR_DumpTblFuncPtr_t.
-**  2. Can assume valid table file name because this is a callback from 
-**     the app framework table manager.
-**
-*/
-bool MSGTBL_DumpCmd(TBLMGR_Tbl_t* Tbl, uint8 DumpType, const char* Filename);
-
-
-/******************************************************************************
-** Function: MSGTBL_SendMsg
-**
-** Send a SB message containing the message table entry at location EntryId.
+** Reset counters and status flags to a known reset state.  The behavior of
+** the table manager should not be impacted. The intent is to clear counters
+** and flags to a known default state for telemetry.
 **
 ** Notes:
-**  1. Range checking is performed on EntryId and an event message is sent for
-**     an invalid ID.
+**   1. See the MSGTBL_Class_t definition for the affected data.
 **
 */
-bool MSGTBL_SendMsg(uint16  EntryId);
+void MSGTBL_ResetStatus(void);
 
 
 #endif /* _msgtbl_ */
