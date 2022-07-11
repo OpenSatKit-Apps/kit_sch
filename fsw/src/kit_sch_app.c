@@ -183,8 +183,8 @@ static int32 InitApp(void)
    if (INITBL_Constructor(INITBL_OBJ, KIT_SCH_INI_FILENAME, &IniCfgEnum))
    {
 
-      KitSch.CmdMid    = CFE_SB_ValueToMsgId(INITBL_GetIntConfig(INITBL_OBJ, CFG_CMD_MID));
-      KitSch.SendHkMid = CFE_SB_ValueToMsgId(INITBL_GetIntConfig(INITBL_OBJ, CFG_SEND_HK_MID));
+      KitSch.CmdMid    = CFE_SB_ValueToMsgId(INITBL_GetIntConfig(INITBL_OBJ, CFG_KIT_SCH_CMD_TOPICID));
+      KitSch.SendHkMid = CFE_SB_ValueToMsgId(INITBL_GetIntConfig(INITBL_OBJ, CFG_KIT_SCH_SEND_HK_TOPICID));
       
       KitSch.StartupSyncTimeout = INITBL_GetIntConfig(INITBL_OBJ, CFG_STARTUP_SYNC_TIMEOUT);
       
@@ -219,7 +219,7 @@ static int32 InitApp(void)
       CMDMGR_RegisterFunc(CMDMGR_OBJ, SCHEDULER_SEND_MSG_TBL_ENTRY_CMD_FC, SCHEDULER_OBJ, SCHEDULER_SendMsgEntryCmd,   SCHEDULER_SEND_MSG_ENTRY_CMD_DATA_LEN);
       CMDMGR_RegisterFunc(CMDMGR_OBJ, SCHEDULER_SEND_DIAG_TLM_CMD_FC,      SCHEDULER_OBJ, SCHEDULER_SendDiagTlmCmd,    SCHEDULER_SEND_DIAG_TLM_CMD_DATA_LEN);
     
-      CFE_MSG_Init(CFE_MSG_PTR(KitSch.HkPkt.TlmHeader), CFE_SB_ValueToMsgId(INITBL_GetIntConfig(INITBL_OBJ, CFG_HK_TLM_MID)), KIT_SCH_HK_TLM_LEN);
+      CFE_MSG_Init(CFE_MSG_PTR(KitSch.HkPkt.TlmHeader), CFE_SB_ValueToMsgId(INITBL_GetIntConfig(INITBL_OBJ, CFG_KIT_SCH_HK_TLM_TOPICID)), KIT_SCH_HK_TLM_LEN);
 
       CFE_EVS_SendEvent(KIT_SCH_INIT_DEBUG_EID, KIT_SCH_INIT_EVS_TYPE,"KIT_SCH_InitApp() Before TBLMGR calls");
       TBLMGR_Constructor(TBLMGR_OBJ);

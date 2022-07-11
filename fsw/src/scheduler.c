@@ -154,8 +154,8 @@ void SCHEDULER_Constructor(SCHEDULER_Class_t* ObjPtr, const INITBL_Class_t* IniT
    } /* End if minor frame timer created */
 
  
-   CFE_MSG_Init(CFE_MSG_PTR(Scheduler->TblEntryPkt.TlmHeader), CFE_SB_ValueToMsgId(INITBL_GetIntConfig(IniTbl, CFG_TBL_ENTRY_TLM_MID)), SCHEDULER_TBL_ENTRY_TLM_LEN);
-   CFE_MSG_Init(CFE_MSG_PTR(Scheduler->DiagPkt.TlmHeader),     CFE_SB_ValueToMsgId(INITBL_GetIntConfig(IniTbl, CFG_DIAG_TLM_MID)),      SCHEDULER_DIAG_TLM_LEN);
+   CFE_MSG_Init(CFE_MSG_PTR(Scheduler->TblEntryPkt.TlmHeader), CFE_SB_ValueToMsgId(INITBL_GetIntConfig(IniTbl, CFG_KIT_SCH_TBL_ENTRY_TLM_TOPICID)), SCHEDULER_TBL_ENTRY_TLM_LEN);
+   CFE_MSG_Init(CFE_MSG_PTR(Scheduler->DiagPkt.TlmHeader),     CFE_SB_ValueToMsgId(INITBL_GetIntConfig(IniTbl, CFG_KIT_SCH_DIAG_TLM_TOPICID)),      SCHEDULER_DIAG_TLM_LEN);
 
    MSGTBL_Constructor(&Scheduler->MsgTbl, INITBL_GetStrConfig(IniTbl, CFG_APP_CFE_NAME));
    SCHTBL_Constructor(&Scheduler->SchTbl, INITBL_GetStrConfig(IniTbl, CFG_APP_CFE_NAME));
